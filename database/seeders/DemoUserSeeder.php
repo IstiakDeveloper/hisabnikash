@@ -25,18 +25,27 @@ class DemoUserSeeder extends Seeder
 
         // Create default categories if they don't exist
         if ($user->categories()->count() === 0) {
-            $categories = [
-                ['name' => 'Food & Dining', 'icon' => '🍽️', 'color' => '#EF4444'],
-                ['name' => 'Transport', 'icon' => '🚗', 'color' => '#F97316'],
-                ['name' => 'Health', 'icon' => '🏥', 'color' => '#10B981'],
-                ['name' => 'Shopping', 'icon' => '🛒', 'color' => '#8B5CF6'],
-                ['name' => 'Utility', 'icon' => '💡', 'color' => '#06B6D4'],
-                ['name' => 'Entertainment', 'icon' => '🎬', 'color' => '#F59E0B'],
-                ['name' => 'Education', 'icon' => '📚', 'color' => '#3B82F6'],
-                ['name' => 'Others', 'icon' => '📦', 'color' => '#6B7280'],
+            $expenseCategories = [
+                ['name' => 'Food & Dining', 'icon' => '🍽️', 'color' => '#EF4444', 'type' => 'expense'],
+                ['name' => 'Transport', 'icon' => '🚗', 'color' => '#F97316', 'type' => 'expense'],
+                ['name' => 'Health', 'icon' => '🏥', 'color' => '#10B981', 'type' => 'expense'],
+                ['name' => 'Shopping', 'icon' => '🛒', 'color' => '#8B5CF6', 'type' => 'expense'],
+                ['name' => 'Utility', 'icon' => '💡', 'color' => '#06B6D4', 'type' => 'expense'],
+                ['name' => 'Entertainment', 'icon' => '🎬', 'color' => '#F59E0B', 'type' => 'expense'],
+                ['name' => 'Education', 'icon' => '📚', 'color' => '#3B82F6', 'type' => 'expense'],
+                ['name' => 'Others', 'icon' => '📦', 'color' => '#6B7280', 'type' => 'expense'],
             ];
 
-            foreach ($categories as $category) {
+            $incomeCategories = [
+                ['name' => 'Salary', 'icon' => '💰', 'color' => '#10B981', 'type' => 'income'],
+                ['name' => 'Business', 'icon' => '💼', 'color' => '#3B82F6', 'type' => 'income'],
+                ['name' => 'Investment', 'icon' => '📈', 'color' => '#8B5CF6', 'type' => 'income'],
+                ['name' => 'Freelance', 'icon' => '💻', 'color' => '#06B6D4', 'type' => 'income'],
+                ['name' => 'Gift', 'icon' => '🎁', 'color' => '#F59E0B', 'type' => 'income'],
+                ['name' => 'Other Income', 'icon' => '💵', 'color' => '#10B981', 'type' => 'income'],
+            ];
+
+            foreach (array_merge($expenseCategories, $incomeCategories) as $category) {
                 Category::create([
                     ...$category,
                     'user_id' => $user->id,

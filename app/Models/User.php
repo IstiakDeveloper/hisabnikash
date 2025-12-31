@@ -50,6 +50,11 @@ class User extends Authenticatable
         return $this->hasMany(Category::class);
     }
 
+    public function budgets(): HasMany
+    {
+        return $this->hasMany(Budget::class);
+    }
+
     // Helper method to get display name
     public function getDisplayNameAttribute(): string
     {

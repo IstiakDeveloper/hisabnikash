@@ -81,7 +81,27 @@ class LoanController extends Controller
         }
 
         return Inertia::render('Loans/Edit', [
-            'loan' => $loan,
+            'loan' => [
+                'id' => $loan->id,
+                'type' => $loan->type,
+                'person_name' => $loan->person_name,
+                'person_phone' => $loan->person_phone,
+                'amount' => $loan->amount,
+                'loan_date' => $loan->loan_date instanceof \DateTime
+                    ? $loan->loan_date->format('Y-m-d')
+                    : (is_string($loan->loan_date)
+                        ? date('Y-m-d', strtotime($loan->loan_date))
+                        : $loan->loan_date),
+                'due_date' => $loan->due_date
+                    ? ($loan->due_date instanceof \DateTime
+                        ? $loan->due_date->format('Y-m-d')
+                        : (is_string($loan->due_date)
+                            ? date('Y-m-d', strtotime($loan->due_date))
+                            : $loan->due_date))
+                    : null,
+                'note' => $loan->note,
+                'interest_rate' => $loan->interest_rate,
+            ],
         ]);
     }
 

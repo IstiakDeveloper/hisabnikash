@@ -51,7 +51,8 @@ class TransactionController extends Controller
 
         $categories = Category::where('user_id', auth()->id())
             ->where('is_active', true)
-            ->get(['id', 'name', 'icon']);
+            ->orderBy('type')
+            ->get(['id', 'name', 'icon', 'type']);
 
         return Inertia::render('Transactions/Index', [
             'transactions' => $transactions,
@@ -69,7 +70,8 @@ class TransactionController extends Controller
 
         $categories = Category::where('user_id', auth()->id())
             ->where('is_active', true)
-            ->get(['id', 'name', 'icon', 'color']);
+            ->orderBy('type')
+            ->get(['id', 'name', 'icon', 'color', 'type']);
 
         return Inertia::render('Transactions/Create', [
             'accounts' => $accounts,
@@ -84,7 +86,7 @@ class TransactionController extends Controller
             'category_id' => 'required|exists:categories,id',
             'type' => 'required|in:income,expense',
             'amount' => 'required|numeric|min:0.01',
-            'description' => 'required|string|max:255',
+            'description' => 'nullable|string|max:255',
             'transaction_date' => 'required|date',
             'note' => 'nullable|string|max:1000',
         ]);
@@ -135,10 +137,24 @@ class TransactionController extends Controller
 
         $categories = Category::where('user_id', auth()->id())
             ->where('is_active', true)
-            ->get(['id', 'name', 'icon', 'color']);
+            ->orderBy('type')
+            ->get(['id', 'name', 'icon', 'color', 'type']);
 
         return Inertia::render('Transactions/Edit', [
-            'transaction' => $transaction,
+            'transaction' => [
+                'id' => $transaction->id,
+                'type' => $transaction->type,
+                'amount' => $transaction->amount,
+                'description' => $transaction->description,
+                'transaction_date' => $transaction->transaction_date instanceof \DateTime
+                    ? $transaction->transaction_date->format('Y-m-d')
+                    : (is_string($transaction->transaction_date)
+                        ? date('Y-m-d', strtotime($transaction->transaction_date))
+                        : $transaction->transaction_date),
+                'account_id' => $transaction->account_id,
+                'category_id' => $transaction->category_id,
+                'note' => $transaction->note,
+            ],
             'accounts' => $accounts,
             'categories' => $categories,
         ]);
@@ -156,7 +172,7 @@ class TransactionController extends Controller
             'category_id' => 'required|exists:categories,id',
             'type' => 'required|in:income,expense',
             'amount' => 'required|numeric|min:0.01',
-            'description' => 'required|string|max:255',
+            'description' => 'nullable|string|max:255',
             'transaction_date' => 'required|date',
             'note' => 'nullable|string|max:1000',
         ]);

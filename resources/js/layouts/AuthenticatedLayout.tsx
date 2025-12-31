@@ -6,20 +6,26 @@ import {
     CreditCardIcon,
     ArrowsRightLeftIcon,
     BanknotesIcon,
+    ChartBarIcon,
     Bars3Icon,
     XMarkIcon,
     UserCircleIcon,
     ArrowRightOnRectangleIcon,
     EyeIcon,
     EyeSlashIcon,
+    FolderIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/utils/cn';
 import { formatCurrency } from '@/utils/formatters';
 import BottomNavigation from '@/components/BottomNavigation';
 import FloatingActionButton from '@/components/FloatingActionButton';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { usePWAUpdate } from '@/hooks/usePWAUpdate';
 import InstallBanner from '@/components/InstallBanner';
 import InstallButton from '@/components/InstallButton';
+import PWAUpdateBanner from '@/components/PWAUpdateBanner';
+import OfflineIndicator from '@/components/OfflineIndicator';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 
 interface Props {
     user?: User;
@@ -31,7 +37,9 @@ interface Props {
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'Accounts', href: '/accounts', icon: CreditCardIcon },
+    { name: 'Categories', href: '/categories', icon: FolderIcon },
     { name: 'Transactions', href: '/transactions', icon: ArrowsRightLeftIcon },
+    { name: 'Budgets', href: '/budgets', icon: ChartBarIcon },
     { name: 'Loans', href: '/loans', icon: BanknotesIcon },
 ];
 
@@ -60,6 +68,16 @@ export default function AuthenticatedLayout({
         showInstallBanner,
         dismissInstallBanner
     } = usePWAInstall();
+
+    const { updateAvailable, updateApp } = usePWAUpdate();
+    const [showUpdateBanner, setShowUpdateBanner] = useState(false);
+
+    // Show update banner when update is available
+    React.useEffect(() => {
+        if (updateAvailable) {
+            setShowUpdateBanner(true);
+        }
+    }, [updateAvailable]);
 
     const currentUrl = typeof window !== 'undefined' ? window.location.pathname : '/dashboard';
 
@@ -384,13 +402,27 @@ export default function AuthenticatedLayout({
             {/* Bottom Navigation - Mobile only */}
             <BottomNavigation />
 
-            {/* Floating Action Button */}
-            {showFAB && <FloatingActionButton />}
+            {/* Floating Action Button - Hidden, using Dashboard's FAB instead */}
+            {/* {showFAB && <FloatingActionButton />} */}
 
+            {/* Offline Indicator */}
+            <OfflineIndicator />
+
+            {/* PWA Install Prompt - Modern style */}
+            <PWAInstallPrompt />
+
+            {/* Install Banner */}
             <InstallBanner
                 onInstall={installApp}
                 onDismiss={dismissInstallBanner}
                 isVisible={showInstallBanner}
+            />
+
+            {/* Update Banner */}
+            <PWAUpdateBanner
+                onUpdate={updateApp}
+                onDismiss={() => setShowUpdateBanner(false)}
+                isVisible={showUpdateBanner}
             />
         </div>
 

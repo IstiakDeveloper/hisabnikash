@@ -51,7 +51,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                             <span className="text-xl text-white">💰</span>
                         </div>
                         <span className="text-xl font-bold text-gray-900 dark:text-white">
-                            Finance App
+                            Nikash
                         </span>
                     </div>
 
@@ -187,7 +187,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                 <footer className="border-t border-gray-200 dark:border-gray-700 py-8">
                     <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
                         <p className="text-gray-600 dark:text-gray-400">
-                            © 2025 Personal Finance App. Built with Laravel & React.
+                            © 2025 Personal Nikash. Built with Laravel & React.
                         </p>
                     </div>
                 </footer>

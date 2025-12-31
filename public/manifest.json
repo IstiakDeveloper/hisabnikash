@@ -70,5 +70,53 @@
         "productivity"
     ],
     "lang": "en",
-    "dir": "ltr"
+    "dir": "ltr",
+    "shortcuts": [
+        {
+            "name": "Add Transaction",
+            "short_name": "Transaction",
+            "description": "Quickly add a new transaction",
+            "url": "/transactions/create",
+            "icons": [
+                {
+                    "src": "/images/icon-96x96.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "View Budgets",
+            "short_name": "Budgets",
+            "description": "Check your budget status",
+            "url": "/budgets",
+            "icons": [
+                {
+                    "src": "/images/icon-96x96.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "Accounts",
+            "short_name": "Accounts",
+            "description": "Manage your accounts",
+            "url": "/accounts",
+            "icons": [
+                {
+                    "src": "/images/icon-96x96.png",
+                    "sizes": "96x96"
+                }
+            ]
+        }
+    ],
+    "share_target": {
+        "action": "/transactions/create",
+        "method": "GET",
+        "enctype": "application/x-www-form-urlencoded",
+        "params": {
+            "title": "description",
+            "text": "note",
+            "url": "url"
+        }
+    }
 }

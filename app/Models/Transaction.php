@@ -42,7 +42,7 @@ class Transaction extends Model
         return $this->belongsTo(Category::class);
     }
 
-    // Auto update account balance after creating transaction
+    // Auto update account balance and budgets after creating transaction
     protected static function booted(): void
     {
         static::created(function (Transaction $transaction) {
@@ -50,6 +50,11 @@ class Transaction extends Model
                 $transaction->amount,
                 $transaction->type
             );
+
+            // Update relevant budgets if expense
+            if ($transaction->type === 'expense') {
+                static::updateRelatedBudgets($transaction);
+            }
         });
 
         static::updated(function (Transaction $transaction) {
@@ -68,6 +73,37 @@ class Transaction extends Model
                     $transaction->type
                 );
             }
+
+            // Update budgets on any expense change
+            if ($transaction->type === 'expense' || $transaction->wasChanged('type')) {
+                static::updateRelatedBudgets($transaction);
+            }
         });
+
+        static::deleted(function (Transaction $transaction) {
+            // Update budgets when transaction is deleted
+            if ($transaction->type === 'expense') {
+                static::updateRelatedBudgets($transaction);
+            }
+        });
+    }
+
+    /**
+     * Update all budgets that might be affected by this transaction
+     */
+    protected static function updateRelatedBudgets(Transaction $transaction): void
+    {
+        $budgets = Budget::where('user_id', $transaction->user_id)
+            ->where('is_active', true)
+            ->where('start_date', '<=', $transaction->transaction_date)
+            ->where('end_date', '>=', $transaction->transaction_date)
+            ->get();
+
+        foreach ($budgets as $budget) {
+            // Update if budget has no category (all expenses) or matches transaction category
+            if (!$budget->category_id || $budget->category_id === $transaction->category_id) {
+                $budget->updateSpentAmount();
+            }
+        }
     }
 }

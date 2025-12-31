@@ -13,6 +13,7 @@ interface Category {
   name: string;
   icon: string;
   color: string;
+  type: 'income' | 'expense';
 }
 
 interface Transaction {
@@ -55,6 +56,9 @@ export default function TransactionForm({
     e.preventDefault();
     onSubmit(data);
   };
+
+  // Filter categories based on transaction type
+  const filteredCategories = categories.filter(category => category.type === data.type);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -141,7 +145,7 @@ export default function TransactionForm({
           Category <span className="text-red-500">*</span>
         </label>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {categories.map((category) => (
+          {filteredCategories.map((category) => (
             <button
               key={category.id}
               type="button"
@@ -164,7 +168,7 @@ export default function TransactionForm({
       {/* Description */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Description <span className="text-red-500">*</span>
+          Description (Optional)
         </label>
         <input
           type="text"
@@ -172,7 +176,6 @@ export default function TransactionForm({
           onChange={(e) => setData('description', e.target.value)}
           className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           placeholder="Enter description"
-          required
         />
         {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
       </div>

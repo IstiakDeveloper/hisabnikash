@@ -13,6 +13,7 @@ class Category extends Model
 
     protected $fillable = [
         'user_id',
+        'type',
         'name',
         'color',
         'icon',
@@ -35,6 +36,11 @@ class Category extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    public function budgets(): HasMany
+    {
+        return $this->hasMany(Budget::class);
     }
 
     // Get monthly spending for this category

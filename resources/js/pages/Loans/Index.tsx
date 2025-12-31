@@ -12,7 +12,8 @@ import {
   CheckCircleIcon,
   ArrowTopRightOnSquareIcon,
   ArrowDownLeftIcon,
-  ClockIcon
+  ClockIcon,
+  PencilIcon
 } from '@heroicons/react/24/outline';
 import { cn } from '@/utils/cn';
 
@@ -56,8 +57,8 @@ export default function Index({ loans }: Props) {
   const activeLoansGiven = loans.filter(loan => loan.type === 'given' && !loan.is_completed);
   const completedLoans = loans.filter(loan => loan.is_completed);
 
-  const totalTaken = activeLoansTaken.reduce((sum, loan) => sum + loan.remaining_amount, 0);
-  const totalGiven = activeLoansGiven.reduce((sum, loan) => sum + loan.remaining_amount, 0);
+  const totalTaken = activeLoansTaken.reduce((sum, loan) => sum + Number(loan.remaining_amount), 0);
+  const totalGiven = activeLoansGiven.reduce((sum, loan) => sum + Number(loan.remaining_amount), 0);
 
   const handleMakePayment = (loanId: number) => {
     router.get(`/loans/${loanId}`);
@@ -235,6 +236,14 @@ export default function Index({ loans }: Props) {
 
         {/* Actions */}
         <div className="flex space-x-3">
+          <Link
+            href={`/loans/${loan.id}/edit`}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+          >
+            <PencilIcon className="h-4 w-4 inline mr-1" />
+            Edit
+          </Link>
+
           <Link
             href={`/loans/${loan.id}`}
             className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-center py-2 px-4 rounded-lg text-sm font-medium transition-colors"

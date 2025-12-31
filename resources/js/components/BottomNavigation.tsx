@@ -4,12 +4,14 @@ import {
   HomeIcon,
   CreditCardIcon,
   ArrowsRightLeftIcon,
+  ChartBarIcon,
   BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
   CreditCardIcon as CreditCardIconSolid,
   ArrowsRightLeftIcon as ArrowsRightLeftIconSolid,
+  ChartBarIcon as ChartBarIconSolid,
   BanknotesIcon as BanknotesIconSolid,
 } from '@heroicons/react/24/solid';
 import { cn } from '@/utils/cn';
@@ -34,6 +36,12 @@ const navigation = [
     activeIcon: ArrowsRightLeftIconSolid
   },
   {
+    name: 'Budgets',
+    href: '/budgets',
+    icon: ChartBarIcon,
+    activeIcon: ChartBarIconSolid
+  },
+  {
     name: 'Loans',
     href: '/loans',
     icon: BanknotesIcon,
@@ -45,31 +53,43 @@ export default function BottomNavigation() {
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/dashboard';
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-40">
-      <div className="flex">
-        {navigation.map((item) => {
-          const isActive = currentPath.startsWith(item.href);
-          const Icon = isActive ? item.activeIcon : item.icon;
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40">
+      {/* Curved Background with shadow */}
+      <div className="relative bg-white dark:bg-gray-800 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
+        <div className="flex items-center justify-around px-2 pt-3 pb-4">
+          {navigation.map((item) => {
+            const isActive = currentPath.startsWith(item.href);
+            const Icon = isActive ? item.activeIcon : item.icon;
 
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex-1 flex flex-col items-center py-2 px-1 transition-colors",
-                isActive
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-              )}
-            >
-              <Icon className="h-6 w-6 mb-1" />
-              <span className="text-xs font-medium">{item.name}</span>
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  "flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-200 min-w-[56px]",
+                  isActive
+                    ? "text-blue-600 dark:text-blue-400"
+                    : "text-gray-400 dark:text-gray-500"
+                )}
+              >
+                <Icon className={cn(
+                  "mb-1 transition-all duration-200",
+                  isActive ? "h-6 w-6" : "h-5 w-5"
+                )} />
+                <span className={cn(
+                  "text-[10px]",
+                  isActive ? "font-semibold" : "font-medium"
+                )}>
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Safe area padding for iOS */}
+        <div className="h-safe-area-inset-bottom bg-white dark:bg-gray-800"></div>
       </div>
-      {/* Safe area padding for iOS */}
-      <div className="h-safe-area-inset-bottom bg-white dark:bg-gray-800"></div>
     </nav>
   );
 }

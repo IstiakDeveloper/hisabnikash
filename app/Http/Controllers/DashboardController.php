@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Transaction;
 use App\Models\Loan;
 use App\Models\Category;
+use App\Models\Budget;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -75,6 +76,60 @@ class DashboardController extends Controller
             })
             ->values();
 
+        // Get active budgets and their status
+        $activeBudgets = Budget::with('category')
+            ->where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->get();
+
+        // Update spent amounts and prepare budget data
+        $activeBudgets->each->updateSpentAmount();
+
+        $budgets = $activeBudgets->map(function ($budget) {
+            return [
+                'id' => $budget->id,
+                'name' => $budget->name,
+                'amount' => $budget->amount,
+                'spent_amount' => $budget->spent_amount,
+                'remaining' => $budget->remaining,
+                'spent_percentage' => $budget->spent_percentage,
+                'is_exceeded' => $budget->isExceeded(),
+                'should_alert' => $budget->shouldAlert(),
+                'status_color' => $budget->status_color,
+                'status_text' => $budget->status_text,
+                'category' => $budget->category ? [
+                    'name' => $budget->category->name,
+                    'color' => $budget->category->color,
+                    'icon' => $budget->category->icon,
+                ] : null,
+            ];
+        });
+
+        // Budget alerts (exceeded or reaching limit)
+        $budgetAlerts = $activeBudgets->filter(function ($budget) {
+            return $budget->isExceeded() || $budget->shouldAlert();
+        })->map(function ($budget) {
+            return [
+                'id' => $budget->id,
+                'name' => $budget->name,
+                'message' => $budget->isExceeded()
+                    ? "বাজেট ৳" . number_format($budget->spent_amount - $budget->amount, 2) . " টাকা অতিক্রম করেছে!"
+                    : "বাজেট " . $budget->spent_percentage . "% ব্যবহৃত হয়েছে!",
+                'type' => $budget->isExceeded() ? 'danger' : 'warning',
+                'spent_percentage' => $budget->spent_percentage,
+            ];
+        })->values();
+
+        // Budget summary
+        $budgetSummary = [
+            'total_budget' => $activeBudgets->sum('amount'),
+            'total_spent' => $activeBudgets->sum('spent_amount'),
+            'total_remaining' => $activeBudgets->sum('remaining'),
+            'exceeded_count' => $activeBudgets->filter->isExceeded()->count(),
+        ];
+
         // Prepare financial summary for layout
         $financialSummary = [
             'totalBalance' => (float) $totalBalance,
@@ -97,6 +152,9 @@ class DashboardController extends Controller
                 'balance' => $monthlyIncome - $monthlyExpense,
             ],
             'categoryExpenses' => $categoryExpenses,
+            'budgets' => $budgets,
+            'budgetAlerts' => $budgetAlerts,
+            'budgetSummary' => $budgetSummary,
         ])->with([
             'financialSummary' => $financialSummary
         ]);

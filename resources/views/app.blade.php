@@ -13,7 +13,7 @@
     <meta name="theme-color" content="#3b82f6">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'Finance App') }}">
+    <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'Nikash') }}">
 
     {{-- Inline script to detect system dark mode preference and apply it immediately --}}
     <script>
@@ -41,13 +41,14 @@
         }
     </style>
 
-    <title inertia>{{ config('app.name', 'Laravel') }}</title>
+    <title inertia>{{ config('app.name', 'Nikash') }}</title>
 
     {{-- PWA Manifest --}}
     <link rel="manifest" href="/manifest.json">
 
     {{-- Favicons --}}
-    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/logo.png" type="image/png">
+    <link rel="apple-touch-icon" href="/logo.png">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
