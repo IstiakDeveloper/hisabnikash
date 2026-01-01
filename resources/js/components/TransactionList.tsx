@@ -53,9 +53,8 @@ export default function TransactionList({
   return (
     <div className="space-y-2 sm:space-y-3">
       {displayTransactions.map((transaction) => (
-        <Link
+        <div
           key={transaction.id}
-          href={`/transactions/${transaction.id}`}
           className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
         >
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -80,23 +79,34 @@ export default function TransactionList({
             </div>
           </div>
 
-          {/* Amount */}
-          <div className="text-right flex-shrink-0 ml-3">
-            <p className={cn(
-              "font-bold text-sm sm:text-base",
-              transaction.type === 'income'
-                ? "text-green-600 dark:text-green-400"
-                : "text-red-600 dark:text-red-400"
-            )}>
-              {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
-            </p>
-            {showAccount && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-[100px]">
-                {transaction.account.name}
+          {/* Amount and Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 ml-3">
+            <div className="text-right">
+              <p className={cn(
+                "font-bold text-sm sm:text-base",
+                transaction.type === 'income'
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-red-600 dark:text-red-400"
+              )}>
+                {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
               </p>
-            )}
+              {showAccount && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-[100px]">
+                  {transaction.account.name}
+                </p>
+              )}
+            </div>
+
+            {/* Edit Button */}
+            <Link
+              href={`/transactions/${transaction.id}/edit`}
+              className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-colors"
+              title="Edit Transaction"
+            >
+              <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            </Link>
           </div>
-        </Link>
+        </div>
       ))}
     </div>
   );
