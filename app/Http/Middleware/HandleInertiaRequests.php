@@ -6,7 +6,9 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use App\Models\Account;
+use App\Models\Category;
 use App\Models\Loan;
+use App\Models\Space;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -83,6 +85,33 @@ class HandleInertiaRequests extends Middleware
                 ->where('start_date', '<=', now()->toDateString())
                 ->where('end_date', '>=', now()->toDateString())
                 ->get(['id', 'name', 'category_id', 'space_id', 'amount', 'spent_amount']) : [],
+
+            // FAB quick-entry data (available on every authenticated page)
+            'fabData' => fn () => $request->user() ? $this->getFabData($request->user()->id) : null,
+        ];
+    }
+
+    /**
+     * Data for the global FAB quick-entry sheet in AuthenticatedLayout.
+     */
+    private function getFabData(int $userId): array
+    {
+        return [
+            'accounts' => Account::where('user_id', $userId)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'type', 'balance']),
+            'categories' => Category::where('user_id', $userId)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'icon', 'type', 'is_fixed', 'color', 'space_id']),
+            'spaces' => Space::where('user_id', $userId)
+                ->orderBy('is_default', 'desc')
+                ->get(['id', 'name', 'type', 'is_default']),
+            'loans' => Loan::where('user_id', $userId)
+                ->where('is_completed', false)
+                ->orderBy('person_name')
+                ->get(['id', 'person_name', 'remaining_amount', 'monthly_installment', 'is_completed']),
         ];
     }
 

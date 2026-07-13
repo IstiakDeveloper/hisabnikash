@@ -24,9 +24,20 @@ interface Props {
   categories: Category[];
   spaces: any[];
   budgets: any[];
+  selected_type?: 'income' | 'expense';
+  selected_account_id?: string | number;
+  selected_category_id?: string | number;
 }
 
-export default function Create({ accounts, categories, spaces, budgets }: Props) {
+export default function Create({
+  accounts,
+  categories,
+  spaces,
+  budgets,
+  selected_type,
+  selected_account_id,
+  selected_category_id,
+}: Props) {
   const { t } = useTranslation();
 
   const handleSubmit = (data: any) => {
@@ -64,6 +75,11 @@ export default function Create({ accounts, categories, spaces, budgets }: Props)
               categories={categories}
               spaces={spaces}
               budgets={budgets}
+              transaction={{
+                type: selected_type || 'expense',
+                account_id: selected_account_id ? Number(selected_account_id) : undefined,
+                category_id: selected_category_id ? Number(selected_category_id) : undefined,
+              }}
               onSubmit={handleSubmit}
               submitLabel={t('add_transaction_title', 'Add New Transaction')}
             />

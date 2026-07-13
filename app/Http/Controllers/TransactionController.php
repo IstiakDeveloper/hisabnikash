@@ -167,6 +167,7 @@ class TransactionController extends Controller
             'budgets' => $budgets,
             'selected_type' => $request->query('type', 'expense'),
             'selected_account_id' => $request->query('account_id'),
+            'selected_category_id' => $request->query('category_id'),
         ]);
     }
 

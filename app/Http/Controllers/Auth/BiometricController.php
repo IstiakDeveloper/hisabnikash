@@ -33,15 +33,25 @@ class BiometricController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'credential_id' => 'required|string',
+            'credential_id' => 'nullable|string',
         ]);
 
         $user = auth()->user();
+
+        if ($request->filled('credential_id')) {
+            $user->update([
+                'biometric_credential_id' => $request->credential_id,
+            ]);
+
+            return response()->json(['success' => true, 'message' => 'ডিভাইস বায়োমেট্রিক সফলভাবে রেজিস্টার করা হয়েছে।']);
+        }
+
         $user->update([
-            'biometric_credential_id' => $request->credential_id,
+            'biometric_credential_id' => null,
+            'biometric_public_key' => null,
         ]);
 
-        return response()->json(['success' => true, 'message' => 'ডিভাইস বায়োমেট্রিক সফলভাবে রেজিস্টার করা হয়েছে।']);
+        return response()->json(['success' => true, 'message' => 'বায়োমেট্রিক সফলভাবে নিষ্ক্রিয় করা হয়েছে।']);
     }
 
     public function loginOptions(Request $request)

@@ -40,11 +40,12 @@ export default function AuthenticatedLayout({ children }: Props) {
     const auth = props.auth as any;
     const { t, locale } = useTranslation();
     
-    // Shared parameters loaded in DashboardController
-    const spaces = (props.spaces as any[]) || [];
-    const accounts = (props.accounts as any[]) || [];
-    const categories = (props.categories as any[]) || [];
-    const loans = (props.loans as any[]) || [];
+    // FAB quick-entry always uses globally shared fabData (not page-specific props)
+    const fabData = (props.fabData as { accounts?: any[]; categories?: any[]; spaces?: any[]; loans?: any[] }) || {};
+    const spaces = fabData.spaces || [];
+    const accounts = fabData.accounts || [];
+    const categories = fabData.categories || [];
+    const loans = fabData.loans || [];
     const activeBudgets = (props.activeBudgets as any[]) || [];
     
     const activeSpaceId = (props.spaceId as string) || 'combined';

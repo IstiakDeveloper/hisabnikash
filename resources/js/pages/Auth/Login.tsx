@@ -187,21 +187,22 @@ export default function Login({ status }: Props) {
                         {processing ? t('logging_in', 'Signing in...') : t('login', 'Login')}
                     </button>
 
-                    {supportsBiometric && (
-                        <button
-                            type="button"
-                            onClick={handleBiometricLogin}
-                            className="w-full bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 font-bold py-3.5 rounded-2xl border border-gray-200 dark:border-slate-800 flex items-center justify-center space-x-2 transition-all active:scale-[0.98] mt-3"
-                        >
-                            <Fingerprint className="w-5 h-5 text-emerald-500" />
-                            <span>{t('biometric_login', 'বায়োমেট্রিক লগইন')}</span>
-                        </button>
-                    )}
-
-                    {biometricError && (
-                        <p className="text-rose-500 text-xs text-center font-semibold mt-2">{biometricError}</p>
-                    )}
                 </form>
+
+                {supportsBiometric && (
+                    <button
+                        type="button"
+                        onClick={handleBiometricLogin}
+                        className="w-full bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 font-bold py-3.5 rounded-2xl border border-gray-200 dark:border-slate-800 flex items-center justify-center space-x-2 transition-all active:scale-[0.98]"
+                    >
+                        <Fingerprint className="w-5 h-5 text-emerald-500" />
+                        <span>{t('biometric_login', 'বায়োমেট্রিক লগইন')}</span>
+                    </button>
+                )}
+
+                {biometricError && (
+                    <p className="text-rose-500 text-xs text-center font-semibold mt-2">{biometricError}</p>
+                )}
 
                 <div className="text-center pt-2">
                     <p className="text-xs text-gray-500 dark:text-slate-500">

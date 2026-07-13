@@ -40,7 +40,7 @@ class SettingController extends Controller
             ->take(10)
             ->get();
 
-        return Inertia::render('Settings/Index', [
+        return Inertia::render('settings/Index', [
             'user' => [
                 'name' => $user->name,
                 'email' => $user->email,
