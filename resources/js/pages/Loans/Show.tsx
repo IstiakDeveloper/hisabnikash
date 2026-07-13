@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { formatCurrency, formatDate } from '@/utils/formatters';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   ArrowLeftIcon,
   CalendarDaysIcon,
@@ -53,6 +54,7 @@ interface Props {
 }
 
 export default function Show({ loan, accounts }: Props) {
+  const { t } = useTranslation();
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const { data, setData, post, processing, errors, reset } = useForm({
     account_id: '',
@@ -85,7 +87,7 @@ export default function Show({ loan, accounts }: Props) {
           </Link>
           <div>
             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-              Loan Details
+              {t('loan_details', 'Loan Details')}
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {loan.person_name}
@@ -94,7 +96,7 @@ export default function Show({ loan, accounts }: Props) {
         </div>
       }
     >
-      <Head title={`Loan - ${loan.person_name}`} />
+      <Head title={`${loan.person_name} - ${t('loan_details', 'Loan Details')}`} />
 
       <div className="p-4 lg:p-6">
         <div className="max-w-4xl mx-auto space-y-6">
@@ -127,7 +129,7 @@ export default function Show({ loan, accounts }: Props) {
                     {loan.person_name}
                   </h3>
                   <p className="text-gray-500 dark:text-gray-400">
-                    {loan.type === 'taken' ? 'Borrowed from' : 'Lent to'}
+                    {loan.type === 'taken' ? t('borrowed_from', 'Borrowed from') : t('lent_to', 'Lent to')}
                   </p>
                 </div>
               </div>
@@ -136,19 +138,20 @@ export default function Show({ loan, accounts }: Props) {
                 <Link
                   href={`/loans/${loan.id}/edit`}
                   className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  title={t('edit', 'Edit')}
                 >
                   <PencilIcon className="h-5 w-5" />
                 </Link>
                 {isOverdue && (
                   <div className="flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-full text-sm font-medium">
                     <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
-                    Overdue
+                    {t('overdue', 'Overdue')}
                   </div>
                 )}
                 {loan.is_completed && (
                   <div className="flex items-center px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-sm font-medium">
                     <CheckCircleIcon className="h-4 w-4 mr-1" />
-                    Completed
+                    {t('completed', 'Completed')}
                   </div>
                 )}
               </div>
@@ -157,19 +160,19 @@ export default function Show({ loan, accounts }: Props) {
             {/* Amount Info */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Original Amount</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{t('original_amount', 'Original Amount')}</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {formatCurrency(loan.amount)}
                 </p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Paid Amount</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{t('paid_amount_label', 'Paid Amount')}</p>
                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {formatCurrency(loan.amount - loan.remaining_amount)}
                 </p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Remaining</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{t('remaining_label_loan', 'Remaining')}</p>
                 <p className={cn(
                   "text-2xl font-bold",
                   loan.is_completed
@@ -187,7 +190,7 @@ export default function Show({ loan, accounts }: Props) {
             {!loan.is_completed && (
               <div className="mb-6">
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  <span>Payment Progress</span>
+                  <span>{t('payment_progress', 'Payment Progress')}</span>
                   <span className="font-medium">{progressPercent.toFixed(1)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
@@ -207,7 +210,7 @@ export default function Show({ loan, accounts }: Props) {
               <div className="flex items-start space-x-3">
                 <CalendarDaysIcon className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Loan Date</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('loan_date', 'Loan Date')}</p>
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {formatDate(loan.loan_date)}
                   </p>
@@ -218,7 +221,7 @@ export default function Show({ loan, accounts }: Props) {
                 <div className="flex items-start space-x-3">
                   <CalendarDaysIcon className="h-5 w-5 text-gray-400 mt-0.5" />
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Due Date</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('due_date', 'Due Date')}</p>
                     <p className={cn(
                       "text-sm font-medium",
                       isOverdue ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-gray-100"
@@ -233,7 +236,7 @@ export default function Show({ loan, accounts }: Props) {
                 <div className="flex items-start space-x-3">
                   <PhoneIcon className="h-5 w-5 text-gray-400 mt-0.5" />
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Phone</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('phone', 'Phone')}</p>
                     <a
                       href={`tel:${loan.person_phone}`}
                       className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
@@ -248,7 +251,7 @@ export default function Show({ loan, accounts }: Props) {
                 <div className="flex items-start space-x-3">
                   <CurrencyDollarIcon className="h-5 w-5 text-gray-400 mt-0.5" />
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Interest Rate</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('interest_rate_label', 'Interest Rate')}</p>
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {loan.interest_rate}%
                     </p>
@@ -259,7 +262,7 @@ export default function Show({ loan, accounts }: Props) {
 
             {loan.note && (
               <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-1">Note</p>
+                <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-1">{t('note_label', 'Note')}</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300">{loan.note}</p>
               </div>
             )}
@@ -270,7 +273,7 @@ export default function Show({ loan, accounts }: Props) {
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Make Payment
+                  {t('make_payment', 'Make Payment')}
                 </h3>
                 {!showPaymentForm && (
                   <button
@@ -278,7 +281,7 @@ export default function Show({ loan, accounts }: Props) {
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
                   >
                     <PlusIcon className="h-4 w-4 inline mr-1" />
-                    Add Payment
+                    {t('add_payment', 'Add Payment')}
                   </button>
                 )}
               </div>
@@ -287,7 +290,7 @@ export default function Show({ loan, accounts }: Props) {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Account <span className="text-red-500">*</span>
+                      {t('account', 'Account')} <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={data.account_id}
@@ -295,7 +298,7 @@ export default function Show({ loan, accounts }: Props) {
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       required
                     >
-                      <option value="">Select Account</option>
+                      <option value="">{t('select_account', 'Select Account')}</option>
                       {accounts.map((account) => (
                         <option key={account.id} value={account.id}>
                           {account.name} ({account.type.replace('_', ' ')})
@@ -309,7 +312,7 @@ export default function Show({ loan, accounts }: Props) {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Payment Amount <span className="text-red-500">*</span>
+                      {t('payment_amount_label', 'Payment Amount')} <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-3 text-gray-500 dark:text-gray-400">৳</span>
@@ -325,7 +328,7 @@ export default function Show({ loan, accounts }: Props) {
                       />
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Maximum: {formatCurrency(loan.remaining_amount)}
+                      {t('maximum', 'Maximum')}: {formatCurrency(loan.remaining_amount)}
                     </p>
                     {errors.amount && (
                       <p className="text-red-500 text-sm mt-1">{errors.amount}</p>
@@ -334,14 +337,14 @@ export default function Show({ loan, accounts }: Props) {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Note (Optional)
+                      {t('note_optional_short', 'Note (Optional)')}
                     </label>
                     <textarea
                       value={data.note}
                       onChange={(e) => setData('note', e.target.value)}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      placeholder="Payment note..."
+                      placeholder={t('payment_note_placeholder', 'Payment note...')}
                     />
                     {errors.note && (
                       <p className="text-red-500 text-sm mt-1">{errors.note}</p>
@@ -357,14 +360,14 @@ export default function Show({ loan, accounts }: Props) {
                       }}
                       className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
-                      Cancel
+                      {t('cancel', 'Cancel')}
                     </button>
                     <button
                       type="submit"
                       disabled={processing}
                       className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {processing ? 'Recording...' : 'Record Payment'}
+                      {processing ? t('recording', 'Recording...') : t('record_payment', 'Record Payment')}
                     </button>
                   </div>
                 </form>
@@ -376,10 +379,10 @@ export default function Show({ loan, accounts }: Props) {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Payment History
+                {t('payment_history', 'Payment History')}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {loan.payments.length} {loan.payments.length === 1 ? 'payment' : 'payments'} recorded
+                {loan.payments.length} {loan.payments.length === 1 ? t('payment_singular', 'payment') : t('payments_plural', 'payments')} {t('payments_recorded', 'recorded')}
               </p>
             </div>
 
@@ -387,7 +390,7 @@ export default function Show({ loan, accounts }: Props) {
               {loan.payments.length === 0 ? (
                 <div className="p-8 text-center">
                   <p className="text-gray-500 dark:text-gray-400">
-                    No payments recorded yet
+                    {t('no_payments_yet', 'No payments recorded yet')}
                   </p>
                 </div>
               ) : (
@@ -410,7 +413,7 @@ export default function Show({ loan, accounts }: Props) {
                         </div>
                         <div className="ml-11">
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            From: {payment.account.name}
+                            {t('from_short', 'From')}: {payment.account.name}
                           </p>
                           {payment.note && (
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">

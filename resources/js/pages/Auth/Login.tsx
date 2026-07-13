@@ -1,193 +1,215 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import {
-  UserIcon,
-  LockClosedIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  ArrowRightIcon
-} from '@heroicons/react/24/outline';
-import { useState } from 'react';
-import GuestLayout from '@/Layouts/GuestLayout';
+import GuestLayout from '../../layouts/GuestLayout';
+import { Mail, Lock, Eye, EyeOff, Fingerprint } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Props {
-  canResetPassword?: boolean;
-  status?: string;
+    status?: string;
 }
 
-export default function Login({ canResetPassword, status }: Props) {
-  const [showPassword, setShowPassword] = useState(false);
-  const { data, setData, post, processing, errors, reset } = useForm({
-    login: '', // Can be username or email
-    password: '',
-    remember: false,
-  });
+export default function Login({ status }: Props) {
+    const { t } = useTranslation();
+    const [showPassword, setShowPassword] = useState(false);
+    const [supportsBiometric, setSupportsBiometric] = useState(false);
+    const [biometricError, setBiometricError] = useState('');
+    
+    const { data, setData, post, processing, errors, reset } = useForm({
+        login: '', // Can be username or email
+        password: '',
+        remember: true,
+    });
 
-  useEffect(() => {
-    return () => {
-      reset('password');
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+            setSupportsBiometric(true);
+        }
+        return () => {
+            reset('password');
+        };
+    }, []);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        post('/login');
     };
-  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    post('/login');
-  };
+    const handleBiometricLogin = async () => {
+        if (!data.login) {
+            setBiometricError(t('enter_username_for_biometric', 'বায়োমেট্রিক লগইনের জন্য প্রথমে ইউজারনেম বা ইমেইল লিখুন।'));
+            return;
+        }
 
-  return (
-    <GuestLayout>
-      <Head title="Login" />
+        try {
+            setBiometricError('');
+            
+            // 1. Fetch options from backend
+            const response = await fetch('/biometrics/login-options', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+                },
+                body: JSON.stringify({ username: data.login })
+            });
 
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4">
-        <div className="max-w-md w-full space-y-8">
-          {/* Header */}
-          <div className="text-center">
-            <div className="mx-auto h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-              <span className="text-2xl text-white">💰</span>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Welcome back
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Sign in to manage your finances
-            </p>
-          </div>
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || 'Biometric check failed.');
+            }
 
-          {/* Status Message */}
-          {status && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg text-sm">
-              {status}
-            </div>
-          )}
+            const options = await response.json();
 
-          {/* Login Form */}
-          <div className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl px-8 py-10 border border-gray-100 dark:border-gray-700">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Username/Email Field */}
-              <div>
-                <label htmlFor="login" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Username or Email
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <UserIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="login"
-                    type="text"
-                    value={data.login}
-                    onChange={(e) => setData('login', e.target.value)}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 transition-colors"
-                    placeholder="Enter username or email"
-                    required
-                    autoFocus
-                  />
+            // 2. Decode challenge
+            const challengeBuffer = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
+
+            // Decode credential ID
+            const rawCredentialId = options.credentialId;
+            const base64 = rawCredentialId.replace(/-/g, '+').replace(/_/g, '/');
+            const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+            const credentialIdBuffer = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+
+            // 3. Request credential verification from browser
+            const credential = await navigator.credentials.get({
+                publicKey: {
+                    challenge: challengeBuffer,
+                    allowCredentials: [{
+                        type: 'public-key',
+                        id: credentialIdBuffer
+                    }],
+                    rpId: options.rpId,
+                    userVerification: 'required',
+                    timeout: 60000
+                }
+            }) as PublicKeyCredential;
+
+            if (!credential) {
+                throw new Error('Biometric login cancelled.');
+            }
+
+            // 4. Send credential.id to login endpoint
+            const loginResponse = await fetch('/biometrics/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+                },
+                body: JSON.stringify({
+                    credential_id: credential.id
+                })
+            });
+
+            if (!loginResponse.ok) {
+                const errData = await loginResponse.json();
+                throw new Error(errData.message || 'Biometric login failed.');
+            }
+
+            const result = await loginResponse.json();
+            if (result.success && result.redirect) {
+                window.location.href = result.redirect;
+            }
+        } catch (err: any) {
+            console.error(err);
+            setBiometricError(err.message || t('biometric_login_failed', 'বায়োমেট্রিক লগইন ব্যর্থ হয়েছে।'));
+        }
+    };
+
+    return (
+        <GuestLayout>
+            <Head title={t('login', 'Login')} />
+
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">{t('login_heading', 'Sign in to your account')}</h2>
+                    <p className="text-xs text-gray-500 dark:text-slate-500">{t('login_pin_instructions', 'Enter your email/username and 4-digit PIN')}</p>
                 </div>
-                {errors.login && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.login}</p>}
-              </div>
 
-              {/* Password Field */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LockClosedIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={data.password}
-                    onChange={(e) => setData('password', e.target.value)}
-                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 transition-colors"
-                    placeholder="Enter password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showPassword ? (
-                      <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    ) : (
-                      <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* User ID / Email */}
+                    <div className="space-y-1.5">
+                        <label className="block text-[10px] uppercase font-bold text-gray-500 dark:text-slate-500 tracking-wider">{t('email_or_username', 'Email or Username')}</label>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500 dark:text-slate-500">
+                                <Mail className="w-4 h-4" />
+                            </div>
+                            <input
+                                type="text"
+                                value={data.login}
+                                onChange={(e) => setData('login', e.target.value)}
+                                placeholder={t('email_or_username_placeholder', 'username or email')}
+                                required
+                                className="block w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-800 dark:text-slate-200"
+                            />
+                        </div>
+                        {errors.login && <span className="text-xs text-rose-500 font-semibold">{errors.login}</span>}
+                    </div>
+
+                    {/* PIN */}
+                    <div className="space-y-1.5">
+                        <label className="block text-[10px] uppercase font-bold text-gray-500 dark:text-slate-500 tracking-wider">{t('pin_code_label', '4-Digit PIN')}</label>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500 dark:text-slate-500">
+                                <Lock className="w-4 h-4" />
+                            </div>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={4}
+                                value={data.password}
+                                onChange={(e) => setData('password', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                placeholder={t('pin_placeholder', '0000')}
+                                required
+                                className="block w-full pl-10 pr-10 py-3 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-800 dark:text-slate-200 tracking-[0.3em]"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-500 dark:text-slate-500 hover:text-gray-700 dark:text-slate-300"
+                            >
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
+                        {errors.password && <span className="text-xs text-rose-500 font-semibold">{errors.password}</span>}
+                    </div>
+
+                    {/* Session stays active */}
+                    <div className="flex items-center justify-end text-xs text-gray-500 dark:text-slate-500">
+                        <Link href="/forgot-password" className="text-emerald-500 hover:underline">{t('forgot_password', 'Forgot password?')}</Link>
+                    </div>
+
+                    {/* Submit */}
+                    <button
+                        type="submit"
+                        disabled={processing}
+                        className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-2xl shadow-lg transition-all active:scale-[0.98] mt-2"
+                    >
+                        {processing ? t('logging_in', 'Signing in...') : t('login', 'Login')}
+                    </button>
+
+                    {supportsBiometric && (
+                        <button
+                            type="button"
+                            onClick={handleBiometricLogin}
+                            className="w-full bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 font-bold py-3.5 rounded-2xl border border-gray-200 dark:border-slate-800 flex items-center justify-center space-x-2 transition-all active:scale-[0.98] mt-3"
+                        >
+                            <Fingerprint className="w-5 h-5 text-emerald-500" />
+                            <span>{t('biometric_login', 'বায়োমেট্রিক লগইন')}</span>
+                        </button>
                     )}
-                  </button>
+
+                    {biometricError && (
+                        <p className="text-rose-500 text-xs text-center font-semibold mt-2">{biometricError}</p>
+                    )}
+                </form>
+
+                <div className="text-center pt-2">
+                    <p className="text-xs text-gray-500 dark:text-slate-500">
+                        {t('dont_have_account', "Don't have an account?")}{' '}
+                        <Link href="/register" className="text-emerald-500 hover:underline font-bold">{t('sign_up', 'Sign up now')}</Link>
+                    </p>
                 </div>
-                {errors.password && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password}</p>}
-              </div>
-
-              {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={data.remember}
-                    onChange={(e) => setData('remember', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Remember me</span>
-                </label>
-
-                {canResetPassword && (
-                  <Link
-                    href="/forgot-password"
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
-                  >
-                    Forgot password?
-                  </Link>
-                )}
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={processing}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                {processing ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Signing in...
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    Sign in
-                    <ArrowRightIcon className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                )}
-              </button>
-            </form>
-
-            {/* Register Link */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Don't have an account?{' '}
-                <Link
-                  href="/register"
-                  className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors"
-                >
-                  Create one now
-                </Link>
-              </p>
             </div>
-          </div>
-
-          {/* Demo Credentials */}
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-2">Demo Credentials:</p>
-            <p className="text-xs text-gray-600 dark:text-gray-300 text-center">
-              Username: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">demo</code> |
-              Password: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">password</code>
-            </p>
-          </div>
-        </div>
-      </div>
-    </GuestLayout>
-  );
+        </GuestLayout>
+    );
 }

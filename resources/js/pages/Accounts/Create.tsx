@@ -1,10 +1,13 @@
 import React from 'react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head, router, Link } from '@inertiajs/react';
 import AccountForm from '@/Components/Forms/AccountForm';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Create() {
+  const { t } = useTranslation();
+
   const handleSubmit = (data: any) => {
     router.post('/accounts', data);
   };
@@ -21,23 +24,23 @@ export default function Create() {
           </Link>
           <div>
             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-              Add Account
+              {t('add_account', 'Add Account')}
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Create a new account to track your finances
+              {t('create_account_subtitle', 'Create a new account to track your finances')}
             </p>
           </div>
         </div>
       }
     >
-      <Head title="Add Account" />
+      <Head title={t('add_account', 'Add Account')} />
 
       <div className="p-4 lg:p-6">
         <div className="max-w-2xl mx-auto">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
             <AccountForm
               onSubmit={handleSubmit}
-              submitLabel="Create Account"
+              submitLabel={t('create_account', 'Create Account')}
             />
           </div>
         </div>

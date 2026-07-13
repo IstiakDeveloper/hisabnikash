@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head, router, Link } from '@inertiajs/react';
 import TransactionForm from '@/components/Forms/TransactionForm';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Account {
   id: number;
@@ -32,15 +33,19 @@ interface Props {
   transaction: Transaction;
   accounts: Account[];
   categories: Category[];
+  spaces: any[];
+  budgets: any[];
 }
 
-export default function Edit({ transaction, accounts, categories }: Props) {
+export default function Edit({ transaction, accounts, categories, spaces, budgets }: Props) {
+  const { t } = useTranslation();
+
   const handleSubmit = (data: any) => {
     router.put(`/transactions/${transaction.id}`, data);
   };
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this transaction?')) {
+    if (confirm(t('delete_transaction_confirm', 'Are you sure you want to delete this transaction?'))) {
       router.delete(`/transactions/${transaction.id}`);
     }
   };
@@ -58,24 +63,24 @@ export default function Edit({ transaction, accounts, categories }: Props) {
             </Link>
             <div>
               <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Edit Transaction
+                {t('edit_transaction_title', 'Edit Transaction')}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Update transaction details
+                {t('edit_transaction_subtitle', 'Update transaction details')}
               </p>
             </div>
           </div>
           <button
             onClick={handleDelete}
             className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-            title="Delete Transaction"
+            title={t('delete_transaction', 'Delete Transaction')}
           >
             <TrashIcon className="h-5 w-5" />
           </button>
         </div>
       }
     >
-      <Head title="Edit Transaction" />
+      <Head title={t('edit_transaction_title', 'Edit Transaction')} />
 
       <div className="p-4 lg:p-6">
         <div className="max-w-2xl mx-auto">
@@ -84,8 +89,10 @@ export default function Edit({ transaction, accounts, categories }: Props) {
               transaction={transaction}
               accounts={accounts}
               categories={categories}
+              spaces={spaces}
+              budgets={budgets}
               onSubmit={handleSubmit}
-              submitLabel="Update Transaction"
+              submitLabel={t('update_transaction', 'Update Transaction')}
             />
           </div>
         </div>

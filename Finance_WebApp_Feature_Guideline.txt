@@ -1,0 +1,302 @@
+================================================================
+PERSONAL & BUSINESS FINANCE MANAGEMENT WEB APP
+Complete Feature Guideline (0 to End)
+================================================================
+
+PURPOSE OF THIS DOCUMENT
+----------------------------------------------------------------
+This is a complete feature specification for building a personal
+finance management web application. It covers every module needed
+to track income, expenses, loans/EMIs, budgets, savings, and
+business vs personal cash flow in one clean system. Use this as a
+build checklist / product spec — implement module by module.
+
+Suggested stack (based on your usual setup): Laravel 12 (backend +
+API), Inertia.js 2 + React 19 (TypeScript) for the frontend, MySQL
+for the database, Repository/Service pattern for business logic.
+Python can be used later for advanced analytics/reporting scripts
+if needed, but is not required for the core app.
+
+================================================================
+1. HIGH-LEVEL MODULE LIST
+================================================================
+1. Authentication & User Profile
+2. Dashboard (Overview)
+3. Income Management
+4. Expense Management
+5. Loan / Debt / EMI Tracker
+6. Budget Planner (Zero-Based Budgeting)
+7. Emergency Fund / Savings Goals
+8. Business vs Personal Account Separation
+9. Recurring Bills & Reminders
+10. Reports & Analytics
+11. Notifications & Alerts
+12. Notes / Financial Journal
+13. Settings & Customization
+14. Data Export / Backup
+15. Security & Privacy
+16. Optional Advanced Features (Phase 3+)
+
+Each module is detailed below with exact features to include.
+
+================================================================
+2. AUTHENTICATION & USER PROFILE
+================================================================
+- Email/password login + optional Google login
+- Password reset via email/OTP
+- Profile setup: name, monthly salary/income source, currency (BDT
+  default), timezone
+- Multi-profile support (optional): allow separate "spaces" for
+  Personal, Rice Business, DesignFIC — so numbers never mix
+- Two-factor authentication (2FA) option for extra account security
+- Session management: view/logout active devices
+
+================================================================
+3. DASHBOARD (OVERVIEW) — THE FIRST SCREEN
+================================================================
+This is the most important screen — must be clean, minimal, and
+show the full financial picture at a glance.
+
+- Monthly income vs total expenses (large summary card)
+- Remaining/available balance for the month (real-time, auto
+  calculated: income - fixed expenses - variable expenses so far)
+- Quick breakdown chart: Fixed Expenses / Savings / Discretionary
+  Spending (pie or donut chart)
+- Active loans/EMIs summary card: total monthly obligation, next
+  due date, remaining count
+- Emergency fund progress bar (current amount / target amount)
+- Upcoming bills this week (rent, EMI, utility) with due dates
+- Spending trend graph (last 6 months, line/bar chart)
+- Alerts area: "You are close to your discretionary budget limit"
+  or "EMI due in 3 days"
+- Toggle between Personal view / Business view / Combined view
+
+================================================================
+4. INCOME MANAGEMENT
+================================================================
+- Add income entries: source (salary, rice business, DesignFIC,
+  freelance, other), amount, date, recurring or one-time
+- Recurring income auto-fill each month (e.g., salary on the 1st)
+- Income history list with filters (by source, by date range)
+- Multiple income source tracking with source-wise totals
+- Tag income as Personal or Business
+
+================================================================
+5. EXPENSE MANAGEMENT
+================================================================
+- Add expense entries: category, amount, date, note, payment
+  method (cash, bank, mobile banking, credit card)
+- Expense categories (customizable), suggested defaults:
+    Fixed: Rent, Loan/EMI, Utilities, Internet/Mobile, Family
+           Support (e.g. spouse's expenses), Insurance
+    Variable: Food, Transport/Fuel, Personal Care, Entertainment,
+              Shopping, Medical, Gifts, Miscellaneous
+- Mark each expense as Fixed or Variable (auto-suggested by
+  category, editable)
+- Mark each expense as Personal or Business
+- Recurring expense setup (auto-log rent, EMI, bills each month)
+- Attach receipt/photo to any expense (optional upload)
+- Quick-add shortcut (floating "+" button, minimal-tap entry form)
+- Expense list with search, filter (category/date/tag), and sort
+- Edit/delete with change history (so nothing silently disappears)
+
+================================================================
+6. LOAN / DEBT / EMI TRACKER
+================================================================
+This is critical for your situation — build this module carefully.
+
+- Add a loan/debt record with:
+    Lender name, loan type (personal loan, credit card EMI,
+    microcredit, informal/family loan), principal amount, interest
+    rate (if known), monthly installment, start date, tenure
+    (months), remaining installments (auto-calculated)
+- Auto-generate a full amortization/payment schedule per loan
+    (month-by-month: due date, amount, paid/unpaid status)
+- Mark installments as Paid / Unpaid / Late
+- Progress bar per loan: "18 of 60 installments paid"
+- Total monthly debt obligation shown as one combined number
+- Debt-free date calculator: shows the exact month/year each loan
+  will be fully paid off, and a combined "debt-free date"
+- Payoff strategy helper: toggle between "Avalanche" (highest
+  interest first) and "Snowball" (smallest balance first) to see
+  suggested extra-payment order
+- Alert when an EMI/installment is due within 3 days
+- Historical log: total interest paid so far, total remaining
+
+================================================================
+7. BUDGET PLANNER (ZERO-BASED BUDGETING)
+================================================================
+- Set a monthly budget: allocate income across categories (Fixed
+  Expenses, Emergency Fund, Personal Spending, Debt Overpayment,
+  etc.) — every taka should be assigned somewhere
+- Real-time tracking: as expenses are logged, show budget used vs
+  remaining per category (progress bars, color-coded: green/
+  yellow/red)
+- Carry-over option: unspent budget in a category can roll to next
+  month or redirect to savings
+- Budget vs Actual comparison report at month-end
+- Template budgets (save a monthly plan and reuse/adjust it)
+
+================================================================
+8. EMERGENCY FUND / SAVINGS GOALS
+================================================================
+- Create savings goals (Emergency Fund, future goal, etc.) with a
+  target amount and target date
+- Auto-calculate suggested monthly contribution to hit the target
+  date
+- Track progress with a visual progress bar
+- Log contributions and (rare) withdrawals with a reason field
+- Multiple goals supported (Emergency Fund, House, etc.)
+- "What-if" calculator: if I add X extra taka/month, when will I
+  reach the goal?
+
+================================================================
+9. BUSINESS VS PERSONAL SEPARATION
+================================================================
+- Every income/expense entry tagged: Personal / Rice Business /
+  DesignFIC / Mousumi Digital Window / Other
+- Separate mini-dashboards per business showing income, expenses,
+  and net profit for that business only
+- "Owner's Draw" tracking: log transfers from business to personal
+  as a specific transaction type, so business profit and personal
+  income never get confused
+- Combined view option for total net worth / cash flow across
+  everything, when needed
+
+================================================================
+10. RECURRING BILLS & REMINDERS
+================================================================
+- Add recurring bills (rent, EMI, electricity, internet, etc.)
+  with due date and frequency (monthly, custom)
+- Auto-generate the bill each cycle, mark Paid/Unpaid
+- Reminder notifications X days before due date (configurable)
+- Overdue bill highlighting on dashboard
+- Bill payment history log per biller
+
+================================================================
+11. REPORTS & ANALYTICS
+================================================================
+- Monthly summary report (income, expenses, savings, debt payment,
+  net balance) — auto-generated, downloadable as PDF
+- Category-wise spending breakdown (pie chart + table)
+- Income vs Expense trend over time (line chart, 6/12 month view)
+- Debt reduction trend chart (total outstanding debt over time)
+- Business profitability report (per business)
+- Custom date range reports
+- Year-in-review summary (annual report)
+
+================================================================
+12. NOTIFICATIONS & ALERTS
+================================================================
+- EMI/bill due reminders (in-app + email/SMS optional)
+- Budget limit warnings ("80% of Personal Spending budget used")
+- Low balance warning (projected balance going negative before
+  month end, based on upcoming fixed expenses)
+- Goal milestone celebrations (e.g., "25% of Emergency Fund
+  reached!")
+- Monthly recap notification (auto-summary pushed at month-end)
+
+================================================================
+13. NOTES / FINANCIAL JOURNAL
+================================================================
+- Free-text notes attached to any month, transaction, or goal
+- Useful for recording context ("borrowed from family, interest-
+  free, repay by [date]") without mixing it into formal loan data
+- Simple tagging/search for notes
+
+================================================================
+14. SETTINGS & CUSTOMIZATION
+================================================================
+- Custom categories (add/edit/remove income & expense categories)
+- Currency format settings
+- Theme: light/dark, minimal color palette
+- Notification preferences (on/off per alert type, channel)
+- Manage multiple business profiles
+- Data reset/archive old years
+
+================================================================
+15. DATA EXPORT / BACKUP
+================================================================
+- Export all data to Excel/CSV (full transaction history)
+- Export monthly/annual reports as PDF
+- Manual backup download (JSON) for personal safekeeping
+- Scheduled auto-backup (if self-hosted)
+
+================================================================
+16. SECURITY & PRIVACY
+================================================================
+- Encrypted database fields for sensitive financial data
+- HTTPS-only access
+- Login activity log
+- Auto-logout after inactivity
+- Optional PIN/biometric lock for quick app re-entry (mobile web)
+
+================================================================
+17. SUGGESTED DATABASE TABLES (HIGH-LEVEL)
+================================================================
+users              (id, name, email, password, currency, timezone)
+profiles           (id, user_id, type: personal/business, name)
+income_sources     (id, profile_id, name, is_recurring)
+incomes            (id, income_source_id, amount, date, note)
+expense_categories (id, profile_id, name, type: fixed/variable)
+expenses           (id, category_id, profile_id, amount, date,
+                     payment_method, note, receipt_url)
+loans              (id, profile_id, lender, type, principal,
+                     interest_rate, monthly_installment,
+                     start_date, tenure_months)
+loan_installments  (id, loan_id, due_date, amount, status)
+budgets            (id, profile_id, month, category_id,
+                     allocated_amount)
+savings_goals      (id, profile_id, name, target_amount,
+                     target_date)
+savings_contributions (id, goal_id, amount, date, note)
+recurring_bills    (id, profile_id, name, amount, due_day,
+                     frequency, status)
+notifications      (id, user_id, type, message, read_status, date)
+notes              (id, profile_id, content, linked_type,
+                     linked_id, date)
+
+================================================================
+18. SUGGESTED BUILD PHASES (ROADMAP)
+================================================================
+PHASE 1 — MVP (Core Survival Tools)
+  - Auth & profile
+  - Income & Expense entry
+  - Loan/EMI tracker with due date alerts
+  - Simple dashboard (income vs expense, upcoming dues)
+
+PHASE 2 — Budgeting & Goals
+  - Zero-based budget planner
+  - Emergency fund/savings goals
+  - Recurring bills automation
+  - Business vs Personal separation
+
+PHASE 3 — Insights & Polish
+  - Full reports & analytics module
+  - Notifications system (email/SMS)
+  - Data export/backup
+  - UI polish, dark mode, charts
+
+PHASE 4 — Advanced (Optional)
+  - Multi-currency support
+  - Bank/mobile-banking API integration (auto-import transactions)
+  - AI-based spending insights ("You usually overspend on X in
+    week 3 of the month")
+  - Shared/family accounts with permission levels
+
+================================================================
+19. UI/UX PRINCIPLES TO FOLLOW
+================================================================
+- Keep it minimal — every screen should answer ONE question at a
+  glance (e.g., dashboard = "how am I doing this month?")
+- Use color meaningfully: green = healthy, yellow = caution,
+  red = over budget/overdue — nowhere else
+- Numbers should be large and readable; charts secondary to numbers
+- Mobile-first: most entries will likely happen on phone, so quick-
+  add flows must be fast (under 3 taps to log an expense)
+- Avoid clutter: hide advanced settings behind a menu, keep the
+  main dashboard clean
+
+================================================================
+END OF GUIDELINE
+================================================================

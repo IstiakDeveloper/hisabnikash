@@ -1,6 +1,7 @@
 import React from 'react';
 import { useForm } from '@inertiajs/react';
 import { cn } from '@/utils/cn';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Account {
     id?: number;
@@ -15,22 +16,24 @@ interface Props {
     account?: Partial<Account>;
     onSubmit: (data: any) => void;
     submitLabel?: string;
-    isEdit?: boolean; // New prop to determine if editing
+    isEdit?: boolean;
 }
-
-const accountTypes = [
-    { value: 'bank', label: 'Bank Account', icon: '🏦' },
-    { value: 'mobile_banking', label: 'Mobile Banking', icon: '📱' },
-    { value: 'cash', label: 'Cash', icon: '💵' },
-    { value: 'card', label: 'Card', icon: '💳' },
-];
 
 export default function AccountForm({
     account,
     onSubmit,
-    submitLabel = 'Save Account',
+    submitLabel,
     isEdit = false
 }: Props) {
+    const { t } = useTranslation();
+
+    const accountTypes = [
+        { value: 'bank', label: t('bank_account', 'Bank Account'), icon: '🏦' },
+        { value: 'mobile_banking', label: t('mobile_banking', 'Mobile Banking'), icon: '📱' },
+        { value: 'cash', label: t('cash', 'Cash'), icon: '💵' },
+        { value: 'card', label: t('card', 'Card'), icon: '💳' },
+    ];
+
     const { data, setData, processing, errors } = useForm({
         name: account?.name || '',
         type: account?.type || 'bank',
@@ -47,26 +50,24 @@ export default function AccountForm({
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Account Name */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Account Name <span className="text-red-500">*</span>
+                    {t('account_name', 'Account Name')} <span className="text-red-500">*</span>
                 </label>
                 <input
                     type="text"
                     value={data.name}
                     onChange={(e) => setData('name', e.target.value)}
                     className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="e.g., Prime Bank Savings"
+                    placeholder={t('account_name_placeholder', 'e.g., Prime Bank Savings')}
                     required
                 />
                 {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
             </div>
 
-            {/* Account Type */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Account Type <span className="text-red-500">*</span>
+                    {t('account_type', 'Account Type')} <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                     {accountTypes.map((type) => (
@@ -89,14 +90,13 @@ export default function AccountForm({
                 {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type}</p>}
             </div>
 
-            {/* Balance Field */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {isEdit ? 'Current Balance' : 'Initial Balance'} <span className="text-red-500">*</span>
+                    {isEdit ? t('current_balance', 'Current Balance') : t('initial_balance', 'Initial Balance')} <span className="text-red-500">*</span>
                 </label>
                 {isEdit && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-200 dark:border-amber-800">
-                        ⚠️ Warning: Changing the balance will not create a transaction record. This directly updates the account balance.
+                        ⚠️ {t('balance_change_warning', 'Warning: Changing the balance will not create a transaction record. This directly updates the account balance.')}
                     </p>
                 )}
                 <div className="relative">
@@ -115,39 +115,36 @@ export default function AccountForm({
                 {errors.balance && <p className="text-red-500 text-sm mt-1">{errors.balance}</p>}
             </div>
 
-            {/* Account Number */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Account Number (Optional)
+                    {t('account_number_optional', 'Account Number (Optional)')}
                 </label>
                 <input
                     type="text"
                     value={data.account_number}
                     onChange={(e) => setData('account_number', e.target.value)}
                     className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="Enter account number"
+                    placeholder={t('enter_account_number', 'Enter account number')}
                 />
                 {errors.account_number && <p className="text-red-500 text-sm mt-1">{errors.account_number}</p>}
             </div>
 
-            {/* Bank Branch */}
             {(data.type === 'bank' || data.type === 'card') && (
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Bank Branch (Optional)
+                        {t('bank_branch_optional', 'Bank Branch (Optional)')}
                     </label>
                     <input
                         type="text"
                         value={data.bank_branch}
                         onChange={(e) => setData('bank_branch', e.target.value)}
                         className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                        placeholder="Enter bank branch"
+                        placeholder={t('enter_bank_branch', 'Enter bank branch')}
                     />
                     {errors.bank_branch && <p className="text-red-500 text-sm mt-1">{errors.bank_branch}</p>}
                 </div>
             )}
 
-            {/* Active Status (Only for Edit) */}
             {isEdit && (
                 <div>
                     <label className="flex items-center">
@@ -158,22 +155,21 @@ export default function AccountForm({
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                         />
                         <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                            Account is active
+                            {t('account_is_active', 'Account is active')}
                         </span>
                     </label>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Inactive accounts won't appear in transaction forms
+                        {t('inactive_accounts_hidden', "Inactive accounts won't appear in transaction forms")}
                     </p>
                 </div>
             )}
 
-            {/* Submit Button */}
             <button
                 type="submit"
                 disabled={processing}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
             >
-                {processing ? 'Saving...' : submitLabel}
+                {processing ? t('saving', 'Saving...') : (submitLabel || t('save_account', 'Save Account'))}
             </button>
         </form>
     );

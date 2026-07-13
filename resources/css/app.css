@@ -175,3 +175,109 @@
         padding-bottom: env(safe-area-inset-bottom, 0);
     }
 }
+
+/* Custom glowing loading progress bar */
+#nprogress {
+    pointer-events: none;
+}
+
+#nprogress .bar {
+    background: #10b981 !important;
+    position: fixed;
+    z-index: 1031;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px !important;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.7), 0 0 8px rgba(16, 185, 129, 0.5);
+    background-image: linear-gradient(to right, #34d399, #10b981, #059669) !important;
+}
+
+#nprogress .peg {
+    display: block;
+    position: absolute;
+    right: 0px;
+    width: 100px;
+    height: 100%;
+    box-shadow: 0 0 10px #10b981, 0 0 5px #10b981;
+    opacity: 1.0;
+    transform: rotate(3deg) translate(0px, -4px);
+}
+
+#nprogress .spinner {
+    display: block;
+    position: fixed;
+    z-index: 1031;
+    top: 15px;
+    right: 15px;
+}
+
+#nprogress .spinner-icon {
+    width: 20px;
+    height: 20px;
+    box-sizing: border-box;
+    border: solid 2.5px transparent;
+    border-top-color: #10b981 !important;
+    border-left-color: #10b981 !important;
+    border-radius: 50%;
+    filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.5));
+    animation: nprogress-spinner 400ms linear infinite;
+}
+
+@keyframes nprogress-spinner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* iOS-style activity spinner loading indicator */
+:root {
+    --ios-spinner-color: #4b5563;
+}
+
+.dark {
+    --ios-spinner-color: #e2e8f0;
+}
+
+.ios-spinner {
+    position: relative;
+    width: 36px;
+    height: 36px;
+}
+
+.ios-spinner div {
+    position: absolute;
+    width: 3px;
+    height: 9px;
+    background: var(--ios-spinner-color);
+    border-radius: 2px;
+    left: 16.5px;
+    transform-origin: 50% 18px;
+    animation: ios-spinner-fade 1.2s linear infinite;
+}
+
+.ios-spinner div:nth-child(1) { transform: rotate(0deg); animation-delay: -1.1s; }
+.ios-spinner div:nth-child(2) { transform: rotate(30deg); animation-delay: -1.0s; }
+.ios-spinner div:nth-child(3) { transform: rotate(60deg); animation-delay: -0.9s; }
+.ios-spinner div:nth-child(4) { transform: rotate(90deg); animation-delay: -0.8s; }
+.ios-spinner div:nth-child(5) { transform: rotate(120deg); animation-delay: -0.7s; }
+.ios-spinner div:nth-child(6) { transform: rotate(150deg); animation-delay: -0.6s; }
+.ios-spinner div:nth-child(7) { transform: rotate(180deg); animation-delay: -0.5s; }
+.ios-spinner div:nth-child(8) { transform: rotate(210deg); animation-delay: -0.4s; }
+.ios-spinner div:nth-child(9) { transform: rotate(240deg); animation-delay: -0.3s; }
+.ios-spinner div:nth-child(10) { transform: rotate(270deg); animation-delay: -0.2s; }
+.ios-spinner div:nth-child(11) { transform: rotate(300deg); animation-delay: -0.1s; }
+.ios-spinner div:nth-child(12) { transform: rotate(330deg); animation-delay: 0s; }
+
+@keyframes ios-spinner-fade {
+    0% { opacity: 1; }
+    100% { opacity: 0.15; }
+}
+
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+    animation: fadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useForm } from '@inertiajs/react';
 import { cn } from '@/utils/cn';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Loan {
   id?: number;
@@ -23,8 +24,9 @@ interface Props {
 export default function LoanForm({
   loan,
   onSubmit,
-  submitLabel = 'Save Loan'
+  submitLabel
 }: Props) {
+  const { t } = useTranslation();
   const { data, setData, processing, errors } = useForm({
     type: loan?.type || 'taken',
     person_name: loan?.person_name || '',
@@ -43,10 +45,9 @@ export default function LoanForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Loan Type */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-          Loan Type <span className="text-red-500">*</span>
+          {t('loan_type', 'Loan Type')} <span className="text-red-500">*</span>
         </label>
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -60,8 +61,8 @@ export default function LoanForm({
             )}
           >
             <div className="text-2xl mb-1">📥</div>
-            <div className="font-medium">Loan Taken</div>
-            <div className="text-xs text-gray-500">I borrowed money</div>
+            <div className="font-medium">{t('loan_taken', 'Loan Taken')}</div>
+            <div className="text-xs text-gray-500">{t('i_borrowed_money', 'I borrowed money')}</div>
           </button>
           <button
             type="button"
@@ -74,48 +75,45 @@ export default function LoanForm({
             )}
           >
             <div className="text-2xl mb-1">📤</div>
-            <div className="font-medium">Loan Given</div>
-            <div className="text-xs text-gray-500">I lent money</div>
+            <div className="font-medium">{t('loan_given', 'Loan Given')}</div>
+            <div className="text-xs text-gray-500">{t('i_lent_money', 'I lent money')}</div>
           </button>
         </div>
         {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type}</p>}
       </div>
 
-      {/* Person Name */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          {data.type === 'taken' ? 'Lender Name' : 'Borrower Name'} <span className="text-red-500">*</span>
+          {data.type === 'taken' ? t('lender_name', 'Lender Name') : t('borrower_name', 'Borrower Name')} <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
           value={data.person_name}
           onChange={(e) => setData('person_name', e.target.value)}
           className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          placeholder={data.type === 'taken' ? 'Who did you borrow from?' : 'Who did you lend to?'}
+          placeholder={data.type === 'taken' ? t('who_borrow_from', 'Who did you borrow from?') : t('who_lend_to', 'Who did you lend to?')}
           required
         />
         {errors.person_name && <p className="text-red-500 text-sm mt-1">{errors.person_name}</p>}
       </div>
 
-      {/* Person Phone */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Phone Number (Optional)
+          {t('phone_number_optional', 'Phone Number (Optional)')}
         </label>
         <input
           type="tel"
           value={data.person_phone}
           onChange={(e) => setData('person_phone', e.target.value)}
           className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          placeholder="Enter phone number"
+          placeholder={t('enter_phone_number', 'Enter phone number')}
         />
         {errors.person_phone && <p className="text-red-500 text-sm mt-1">{errors.person_phone}</p>}
       </div>
 
-      {/* Amount */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Loan Amount <span className="text-red-500">*</span>
+          {t('loan_amount', 'Loan Amount')} <span className="text-red-500">*</span>
         </label>
         <div className="relative">
           <span className="absolute left-3 top-3 text-gray-500 dark:text-gray-400">৳</span>
@@ -133,10 +131,9 @@ export default function LoanForm({
         {errors.amount && <p className="text-red-500 text-sm mt-1">{errors.amount}</p>}
       </div>
 
-      {/* Loan Date */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Loan Date <span className="text-red-500">*</span>
+          {t('loan_date', 'Loan Date')} <span className="text-red-500">*</span>
         </label>
         <input
           type="date"
@@ -148,10 +145,9 @@ export default function LoanForm({
         {errors.loan_date && <p className="text-red-500 text-sm mt-1">{errors.loan_date}</p>}
       </div>
 
-      {/* Due Date */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Due Date (Optional)
+          {t('due_date_optional', 'Due Date (Optional)')}
         </label>
         <input
           type="date"
@@ -163,10 +159,9 @@ export default function LoanForm({
         {errors.due_date && <p className="text-red-500 text-sm mt-1">{errors.due_date}</p>}
       </div>
 
-      {/* Interest Rate */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Interest Rate % (Optional)
+          {t('interest_rate_optional', 'Interest Rate % (Optional)')}
         </label>
         <div className="relative">
           <input
@@ -184,28 +179,26 @@ export default function LoanForm({
         {errors.interest_rate && <p className="text-red-500 text-sm mt-1">{errors.interest_rate}</p>}
       </div>
 
-      {/* Note */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Note (Optional)
+          {t('note_optional', 'Note (Optional)')}
         </label>
         <textarea
           value={data.note}
           onChange={(e) => setData('note', e.target.value)}
           rows={3}
           className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          placeholder="Add any additional details"
+          placeholder={t('add_additional_details', 'Add any additional details')}
         />
         {errors.note && <p className="text-red-500 text-sm mt-1">{errors.note}</p>}
       </div>
 
-      {/* Submit Button */}
       <button
         type="submit"
         disabled={processing}
         className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
       >
-        {processing ? 'Saving...' : submitLabel}
+        {processing ? t('saving', 'Saving...') : (submitLabel || t('save_loan', 'Save Loan'))}
       </button>
     </form>
   );

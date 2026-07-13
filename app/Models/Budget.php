@@ -13,6 +13,7 @@ class Budget extends Model
     protected $fillable = [
         'user_id',
         'category_id',
+        'space_id',
         'name',
         'amount',
         'period',
@@ -38,6 +39,11 @@ class Budget extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function space(): BelongsTo
+    {
+        return $this->belongsTo(Space::class);
     }
 
     public function category(): BelongsTo
@@ -110,6 +116,11 @@ class Budget extends Model
         // If budget is category-specific, filter by category
         if ($this->category_id) {
             $query->where('category_id', $this->category_id);
+        }
+
+        // Filter by space if specified
+        if ($this->space_id) {
+            $query->where('space_id', $this->space_id);
         }
 
         $this->spent_amount = $query->sum('amount');

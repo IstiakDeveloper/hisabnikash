@@ -1,447 +1,343 @@
 import React, { useState } from 'react';
-import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { formatCurrency } from '@/utils/formatters';
-import {
-  PlusIcon,
-  FunnelIcon,
-  ArrowPathIcon,
-  ChartBarIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  CalendarIcon,
-  TrashIcon,
-} from '@heroicons/react/24/outline';
-import { cn } from '@/utils/cn';
+import AuthenticatedLayout, { number_format } from '../../layouts/AuthenticatedLayout';
+import { useTranslation } from '@/hooks/useTranslation';
+import { 
+    Plus, 
+    Trash2, 
+    X, 
+    Info, 
+    CheckCircle, 
+    AlertTriangle,
+    Wallet,
+    Calendar,
+    ArrowUpRight,
+    Copy
+} from 'lucide-react';
 
-interface Category {
-  id: number;
-  name: string;
-  color: string;
-  icon: string;
-}
+export default function Index(props: any) {
+    const {
+        budgets = [],
+        categories = [],
+        spaces = [],
+        summary = {},
+        filters = {}
+    } = props;
 
-interface Budget {
-  id: number;
-  name: string;
-  amount: number;
-  spent_amount: number;
-  remaining: number;
-  spent_percentage: number;
-  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  start_date: string;
-  end_date: string;
-  category: Category | null;
-  is_active: boolean;
-  is_exceeded: boolean;
-  should_alert: boolean;
-  status_color: string;
-  status_text: string;
-  note: string | null;
-}
+    const { t } = useTranslation();
 
-interface BudgetSummary {
-  total_budget: number;
-  total_spent: number;
-  total_remaining: number;
-  exceeded_count: number;
-  alert_count: number;
-}
+    const [isAddOpen, setIsAddOpen] = useState(false);
+    const [name, setName] = useState('');
+    const [categoryId, setCategoryId] = useState('');
+    const [spaceId, setSpaceId] = useState(spaces[0]?.id?.toString() || '');
+    const [amount, setAmount] = useState('');
+    const [period, setPeriod] = useState('monthly');
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
+    const [startDate, setStartDate] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`);
+    const [endDate, setEndDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]);
+    const [note, setNote] = useState('');
+    const [alertPercentage, setAlertPercentage] = useState('80');
+    const [notifyOnExceed, setNotifyOnExceed] = useState(true);
 
-interface Props {
-  budgets: {
-    data: Budget[];
-    links: any;
-    current_page: number;
-    last_page: number;
-  };
-  summary: BudgetSummary;
-  filters: {
-    status?: string;
-    period?: string;
-  };
-}
-
-export default function Index({ budgets, summary, filters }: Props) {
-  const [statusFilter, setStatusFilter] = useState(filters.status || '');
-  const [periodFilter, setPeriodFilter] = useState(filters.period || '');
-
-  const handleFilter = (status: string, period: string) => {
-    router.get('/budgets', {
-      status: status || undefined,
-      period: period || undefined,
-    }, {
-      preserveState: true,
-      preserveScroll: true,
-    });
-  };
-
-  const handleRefresh = () => {
-    router.post('/budgets/refresh', {}, {
-      preserveState: true,
-      preserveScroll: true,
-    });
-  };
-
-  const handleDelete = (budgetId: number, budgetName: string) => {
-    if (confirm(`Are you sure you want to delete "${budgetName}" budget?`)) {
-      router.delete(`/budgets/${budgetId}`, {
-        preserveScroll: true,
-      });
-    }
-  };
-
-  const getStatusBadge = (budget: Budget) => {
-    if (budget.is_exceeded) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-          <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
-          Exceeded
-        </span>
-      );
-    }
-    if (budget.should_alert) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-          <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
-          Warning
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-        <CheckCircleIcon className="w-3 h-3 mr-1" />
-        Normal
-      </span>
-    );
-  };
-
-  const getPeriodLabel = (period: string) => {
-    const labels: Record<string, string> = {
-      daily: 'Daily',
-      weekly: 'Weekly',
-      monthly: 'Monthly',
-      yearly: 'Yearly',
+    const handleMonthChange = (monthStr: string) => {
+        setSelectedMonth(monthStr);
+        if (!monthStr) return;
+        const [year, month] = monthStr.split('-').map(Number);
+        const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+        setStartDate(firstDay);
+        setEndDate(lastDay);
     };
-    return labels[period] || period;
-  };
 
-  const getProgressBarColor = (budget: Budget) => {
-    if (budget.is_exceeded) return 'bg-red-500';
-    if (budget.should_alert) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
+    const submitAddBudget = (e: React.FormEvent) => {
+        e.preventDefault();
+        router.post('/budgets', {
+            name,
+            category_id: categoryId || null,
+            space_id: spaceId,
+            amount: Number(amount),
+            period,
+            start_date: startDate,
+            end_date: endDate,
+            note,
+            alert_percentage: Number(alertPercentage),
+            notify_on_exceed: notifyOnExceed,
+        }, {
+            onSuccess: () => {
+                setIsAddOpen(false);
+                resetAddForm();
+            }
+        });
+    };
 
-  return (
-    <AuthenticatedLayout
-      showFAB={false}
-      header={
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-            Budget Management
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            View and manage all your budgets
-          </p>
-        </div>
-      }
-    >
-      <Head title="Budget Management" />
+    const resetAddForm = () => {
+        setName('');
+        setCategoryId('');
+        setAmount('');
+        setNote('');
+    };
 
-      <div className="py-6 lg:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="md:flex md:items-center md:justify-between mb-6">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:text-3xl sm:truncate">
-                Budget Management
-              </h2>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                View and manage all your budgets
-              </p>
-            </div>
-            <div className="mt-4 flex md:mt-0 md:ml-4 space-x-2">
-              <button
-                onClick={handleRefresh}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <ArrowPathIcon className="h-5 w-5 mr-2" />
-                Refresh
-              </button>
-              <Link
-                href="/budgets/create"
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                New Budget
-              </Link>
-            </div>
-          </div>
+    const handleCloneBudget = () => {
+        if (confirm(t('confirm_clone_budget', "Are you sure you want to clone last month's budgets into the selected month?"))) {
+            router.post('/budgets/clone', {
+                target_month: selectedMonth
+            });
+        }
+    };
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5 mb-6">
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-lg">
-              <div className="p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <ChartBarIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="ml-3 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                        Total Budget
-                      </dt>
-                      <dd className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(summary.total_budget)}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
+    const handleDelete = (id: number) => {
+        if (confirm(t('delete_budget_confirm', 'Are you sure you want to delete this budget limit?'))) {
+            router.delete('/budgets/' + id);
+        }
+    };
 
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-lg">
-              <div className="p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <ChartBarIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
-                  </div>
-                  <div className="ml-3 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                        Spent
-                      </dt>
-                      <dd className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(summary.total_spent)}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
+    return (
+        <AuthenticatedLayout>
+            <Head title={t('budget_planner_head', 'Budget Planner')} />
 
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-lg">
-              <div className="p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <ChartBarIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div className="ml-3 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                        Remaining
-                      </dt>
-                      <dd className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(summary.total_remaining)}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-lg">
-              <div className="p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-                  </div>
-                  <div className="ml-3 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                        Alerts
-                      </dt>
-                      <dd className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white">
-                        {summary.exceeded_count + summary.alert_count}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-4 mb-6">
-            <div className="flex items-center space-x-4">
-              <FunnelIcon className="h-5 w-5 text-gray-400" />
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    handleFilter(e.target.value, periodFilter);
-                  }}
-                  className="block w-full px-4 py-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-                >
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="exceeded">Exceeded</option>
-                  <option value="completed">Completed</option>
-                </select>
-
-                <select
-                  value={periodFilter}
-                  onChange={(e) => {
-                    setPeriodFilter(e.target.value);
-                    handleFilter(statusFilter, e.target.value);
-                  }}
-                  className="block w-full px-4 py-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-                >
-                  <option value="">All Periods</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Budget List */}
-          <div className="space-y-4">
-            {budgets.data.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-12 text-center">
-                <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No budgets yet</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Get started by creating a new budget
-                </p>
-                <div className="mt-6">
-                  <Link
-                    href="/budgets/create"
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <PlusIcon className="h-5 w-5 mr-2" />
-                    Create New Budget
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              budgets.data.map((budget) => (
-                <div
-                  key={budget.id}
-                  className="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-                >
-                  <div className="p-4 lg:p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          {budget.category && (
-                            <span className="text-xl">{budget.category.icon}</span>
-                          )}
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {budget.name}
-                          </h3>
-                        </div>
-                        {budget.category && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {budget.category.name}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {getStatusBadge(budget)}
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                          {getPeriodLabel(budget.period)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {formatCurrency(budget.spent_amount)} / {formatCurrency(budget.amount)}
-                        </span>
-                        <span className={cn(
-                          "text-sm font-bold",
-                          budget.is_exceeded ? "text-red-600 dark:text-red-400" :
-                          budget.should_alert ? "text-yellow-600 dark:text-yellow-400" :
-                          "text-green-600 dark:text-green-400"
-                        )}>
-                          {budget.spent_percentage.toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                        <div
-                          className={cn(
-                            "h-2.5 rounded-full transition-all",
-                            getProgressBarColor(budget)
-                          )}
-                          style={{ width: `${Math.min(budget.spent_percentage, 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {/* Budget Info */}
-                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-3">
-                      <div className="flex items-center">
-                        <CalendarIcon className="h-4 w-4 mr-1" />
-                        <span>
-                          {new Date(budget.start_date).toLocaleDateString('bn-BD')} - {new Date(budget.end_date).toLocaleDateString('bn-BD')}
-                        </span>
-                      </div>
-                      <div className="font-medium">
-                        Remaining: {formatCurrency(budget.remaining)}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <Link
-                        href={`/budgets/${budget.id}`}
-                        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
-                      >
-                        View Details →
-                      </Link>
-                      <div className="flex space-x-2">
-                        <Link
-                          href={`/budgets/${budget.id}/edit`}
-                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                        >
-                          Edit
-                        </Link>
+            <div className="space-y-6">
+                
+                {/* 1. Header */}
+                <div className="space-y-4">
+                    <h2 className="text-xl font-bold tracking-tight text-slate-100 sm:text-2xl">{t('budget_planner_title', 'Budget Planner (Zero-Based Budget)')}</h2>
+                    <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:space-x-3.5">
                         <button
-                          onClick={() => handleDelete(budget.id, budget.name)}
-                          className="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-600 shadow-sm text-xs font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            onClick={handleCloneBudget}
+                            className="bg-slate-800/80 hover:bg-slate-700/90 border border-slate-700/60 py-3 px-4 rounded-2xl text-xs font-bold text-slate-200 transition-all active:scale-95 flex items-center justify-center space-x-2 shadow-md hover:border-slate-600"
                         >
-                          <TrashIcon className="h-3.5 w-3.5" />
+                            <Copy className="w-4 h-4 text-slate-400" />
+                            <span>{t('clone_last_month_budget', "Clone Last Month's Budget")}</span>
                         </button>
-                      </div>
+                        <button
+                            onClick={() => setIsAddOpen(true)}
+                            className="bg-emerald-600 hover:bg-emerald-500 py-3 px-4 rounded-2xl text-xs font-bold text-white transition-all active:scale-95 flex items-center justify-center space-x-2 shadow-lg shadow-emerald-950/20"
+                        >
+                            <Plus className="w-4 h-4 text-emerald-100" />
+                            <span>{t('create_budget', 'Create Budget Limit')}</span>
+                        </button>
                     </div>
-                  </div>
                 </div>
-              ))
-            )}
-          </div>
 
-          {/* Pagination */}
-          {budgets.last_page > 1 && (
-            <div className="mt-6 flex items-center justify-between">
-              <div className="text-sm text-gray-700 dark:text-gray-300">
-                পেজ {budgets.current_page} of {budgets.last_page}
-              </div>
-              <div className="flex space-x-2">
-                {budgets.links.map((link: any, index: number) => (
-                  <Link
-                    key={index}
-                    href={link.url || '#'}
-                    className={cn(
-                      "px-3 py-2 text-sm font-medium rounded-md",
-                      link.active
-                        ? "bg-blue-600 text-white"
-                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700",
-                      !link.url && "opacity-50 cursor-not-allowed"
+                {/* 2. Budget summary stats */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-3xl p-5 space-y-4">
+                    <div className="flex items-center space-x-2 text-xs font-bold text-gray-500 dark:text-slate-400">
+                        <Wallet className="w-4 h-4 text-emerald-500" />
+                        <span>{t('monthly_budget_summary', 'Current Month Overall Budget Summary')}</span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-gray-50 dark:bg-slate-950 p-3 rounded-2xl border border-gray-200 dark:border-gray-200 dark:border-slate-800">
+                            <span className="text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 block">{t('total_allocated', 'Total Allocated')}</span>
+                            <span className="text-sm font-black text-gray-800 dark:text-slate-200 block">৳{number_format(summary.total_budget)}</span>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-slate-950 p-3 rounded-2xl border border-gray-200 dark:border-gray-200 dark:border-slate-800">
+                            <span className="text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 block">{t('total_spent_label', 'Total Spent')}</span>
+                            <span className="text-sm font-black text-rose-400 block">৳{number_format(summary.total_spent)}</span>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-slate-950 p-3 rounded-2xl border border-gray-200 dark:border-gray-200 dark:border-slate-800">
+                            <span className="text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 block">{t('remaining_balance', 'Remaining Balance')}</span>
+                            <span className="text-sm font-black text-emerald-400 block font-bold">৳{number_format(summary.total_remaining)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. Budgets list */}
+                <div className="space-y-4">
+                    {budgets.length === 0 ? (
+                        <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-3xl py-12 text-center text-xs text-gray-500 dark:text-slate-500">
+                            {t('no_budget_plans', 'No budget plans created yet.')}
+                        </div>
+                    ) : (
+                        budgets.map((b: any) => {
+                            const barColor = b.is_exceeded 
+                                ? 'bg-rose-500' 
+                                : (b.should_alert ? 'bg-amber-500' : 'bg-emerald-500');
+
+                            const textColor = b.is_exceeded 
+                                ? 'text-rose-400' 
+                                : (b.should_alert ? 'text-amber-400' : 'text-emerald-400');
+
+                            return (
+                                <div key={b.id} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-3xl p-5 space-y-4">
+                                    <div className="flex items-start justify-between">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center space-x-2">
+                                                {b.category?.icon && (
+                                                    <span className="text-lg bg-gray-50 dark:bg-slate-950 p-1.5 rounded-xl border border-gray-200 dark:border-gray-200 dark:border-slate-800">{b.category.icon}</span>
+                                                )}
+                                                <div>
+                                                    <h4 className="text-xs font-bold text-gray-900 dark:text-slate-100">{b.name}</h4>
+                                                    <span className="text-[9px] text-gray-500 dark:text-slate-500 uppercase font-bold tracking-wider block mt-0.5">
+                                                        {b.period} • {b.space?.name || t('general', 'General')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="text-right space-y-0.5">
+                                            <span className="text-[9px] text-gray-500 dark:text-slate-500 uppercase font-bold block">{t('allocated_limit', 'Allocated Limit')}</span>
+                                            <span className="text-sm font-black text-gray-900 dark:text-slate-100 block">৳{number_format(b.amount)}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Real-time bar tracker */}
+                                    <div className="space-y-2">
+                                        <div className="w-full h-3 bg-gray-50 dark:bg-slate-950 rounded-full overflow-hidden">
+                                            <div 
+                                                className={`h-full rounded-full transition-all ${barColor}`}
+                                                style={{ width: `${Math.min(100, b.spent_percentage)}%` }}
+                                            ></div>
+                                        </div>
+                                        
+                                        <div className="flex justify-between text-[10px] font-bold text-gray-500 dark:text-slate-400">
+                                            <span>{t('spent_colon', 'Spent')}: ৳{number_format(b.spent_amount)} ({b.spent_percentage}%)</span>
+                                            <span>{t('remaining_colon', 'Remaining')}: ৳{number_format(b.remaining)}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Warning logs */}
+                                    <div className="flex items-center justify-between text-[10px] bg-gray-50/50 dark:bg-slate-950/50 p-3 rounded-2xl border border-gray-200 dark:border-gray-200 dark:border-slate-800">
+                                        <span className={`font-bold flex items-center ${textColor}`}>
+                                            {b.is_exceeded ? (
+                                                <><AlertTriangle className="w-3.5 h-3.5 mr-1" /> {t('budget_exceeded_alert', 'Budget exceeded!')}</>
+                                            ) : (
+                                                b.should_alert 
+                                                    ? <><AlertTriangle className="w-3.5 h-3.5 mr-1" /> {t('alert_threshold_reached', 'Alert threshold reached')}</>
+                                                    : <><CheckCircle className="w-3.5 h-3.5 mr-1" /> {t('within_safe_limit', 'Within safe limits')}</>
+                                            )}
+                                        </span>
+                                        
+                                        <button
+                                            onClick={() => handleDelete(b.id)}
+                                            className="text-gray-500 dark:text-slate-500 hover:text-rose-500 p-1 rounded transition-all"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })
                     )}
-                    dangerouslySetInnerHTML={{ __html: link.label }}
-                  />
-                ))}
-              </div>
+                </div>
             </div>
-          )}
-        </div>
-      </div>
-    </AuthenticatedLayout>
-  );
+
+            {/* Add Budget Modal Bottom Sheet */}
+            {isAddOpen && (
+                <>
+                    <div className="fixed inset-0 z-35 bg-black/60 backdrop-blur-xs" onClick={() => setIsAddOpen(false)}></div>
+                    <div className="absolute bottom-0 inset-x-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 rounded-t-[32px] p-6 z-40 space-y-5 animate-slide-up max-h-[85%] overflow-y-auto">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">{t('create_budget_plan', 'Create Budget Plan')}</h3>
+                            <button onClick={() => setIsAddOpen(false)} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={submitAddBudget} className="space-y-4">
+                            <div>
+                                <label className="block text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 mb-1">{t('budget_name', 'Budget Name')}</label>
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder={t('budget_name_placeholder', 'e.g. Weekly grocery budget...')}
+                                    required
+                                    className="block w-full px-4 py-3 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 mb-1">{t('linked_space', 'Linked Space')}</label>
+                                <select
+                                    value={spaceId}
+                                    onChange={(e) => setSpaceId(e.target.value)}
+                                    required
+                                    className="block w-full px-4 py-3.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs"
+                                >
+                                    {spaces.map((s: any) => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 mb-1">{t('category_optional', 'Category (Optional)')}</label>
+                                <select
+                                    value={categoryId}
+                                    onChange={(e) => setCategoryId(e.target.value)}
+                                    className="block w-full px-4 py-3.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs"
+                                >
+                                    <option value="">{t('all_categories_budget', 'All Categories (Overall Budget)')}</option>
+                                    {categories.map((c: any) => (
+                                        <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 mb-1">{t('allocated_amount_bdt', 'Allocated Amount (BDT)')}</label>
+                                <input
+                                    type="number"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    required
+                                    className="block w-full px-4 py-3 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[9px] uppercase font-bold text-slate-500 mb-1">{t('budget_month', 'Budget Month')}</label>
+                                <input
+                                    type="month"
+                                    value={selectedMonth}
+                                    onChange={(e) => handleMonthChange(e.target.value)}
+                                    required
+                                    className="block w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-350"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 mb-1">{t('alert_trigger_threshold', 'Alert Trigger Threshold (%)')}</label>
+                                <input
+                                    type="number"
+                                    value={alertPercentage}
+                                    onChange={(e) => setAlertPercentage(e.target.value)}
+                                    required
+                                    className="block w-full px-4 py-3 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl">
+                                <span className="text-xs font-bold">{t('notify_on_exceed_question', 'Send notification when limit is exceeded?')}</span>
+                                <input
+                                    type="checkbox"
+                                    checked={notifyOnExceed}
+                                    onChange={(e) => setNotifyOnExceed(e.target.checked)}
+                                    className="w-5 h-5 rounded-md border-gray-200 dark:border-slate-800 text-emerald-600 focus:ring-emerald-500 bg-white dark:bg-slate-900"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 mb-1">{t('note_label', 'Note')}</label>
+                                <textarea
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    rows={2}
+                                    className="block w-full px-4 py-3 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none"
+                                ></textarea>
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-2xl text-xs font-bold text-white shadow-lg transition-all"
+                            >
+                                {t('submit_budget', 'Add to Budget List')}
+                            </button>
+                        </form>
+                    </div>
+                </>
+            )}
+
+        </AuthenticatedLayout>
+    );
 }

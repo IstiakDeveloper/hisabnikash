@@ -18,18 +18,35 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'currency',
+        'timezone',
+        'pin_code',
+        'auto_logout_minutes',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
+        'language',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'two_factor_confirmed_at' => 'datetime',
+        'auto_logout_minutes' => 'integer',
     ];
 
     // Define relationships
+    public function spaces(): HasMany
+    {
+        return $this->hasMany(Space::class);
+    }
+
     public function accounts(): HasMany
     {
         return $this->hasMany(Account::class);
@@ -53,6 +70,31 @@ class User extends Authenticatable
     public function budgets(): HasMany
     {
         return $this->hasMany(Budget::class);
+    }
+
+    public function savingsGoals(): HasMany
+    {
+        return $this->hasMany(SavingsGoal::class);
+    }
+
+    public function recurringBills(): HasMany
+    {
+        return $this->hasMany(RecurringBill::class);
+    }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(Note::class);
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function loginActivities(): HasMany
+    {
+        return $this->hasMany(LoginActivity::class);
     }
 
     // Helper method to get display name

@@ -27,17 +27,12 @@ class AccountController extends Controller
         ]);
     }
 
-    public function create(): Response
-    {
-        return Inertia::render('Accounts/Create');
-    }
-
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|in:bank,mobile_banking,cash,card',
-            'balance' => 'required|numeric|min:0',
+            'balance' => 'required|numeric',
             'account_number' => 'nullable|string|max:255',
             'bank_branch' => 'nullable|string|max:255',
         ]);
@@ -45,78 +40,45 @@ class AccountController extends Controller
         Account::create([
             ...$validated,
             'user_id' => auth()->id(),
+            'is_active' => true
         ]);
 
-        return redirect()->route('accounts.index')
-            ->with('success', "Account '{$validated['name']}' created successfully! 🎉");
-    }
-
-    public function show(Account $account): Response
-    {
-        if ($account->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized access to this account.');
-        }
-
-        $account->load([
-            'transactions' => function ($query) {
-                $query->with('category')->latest()->take(20);
-            }
-        ]);
-
-        return Inertia::render('Accounts/Show', [
-            'account' => $account,
-        ]);
-    }
-
-    public function edit(Account $account): Response
-    {
-        if ($account->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized access to this account.');
-        }
-
-        return Inertia::render('Accounts/Edit', [
-            'account' => $account,
-        ]);
+        return redirect()->back()->with('success', "অ্যাকাউন্ট সফলভাবে যুক্ত হয়েছে।");
     }
 
     public function update(Request $request, Account $account): RedirectResponse
     {
         if ($account->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized access to this account.');
+            abort(403);
         }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|in:bank,mobile_banking,cash,card',
-            'balance' => 'required|numeric|min:0',
+            'balance' => 'required|numeric',
             'account_number' => 'nullable|string|max:255',
             'bank_branch' => 'nullable|string|max:255',
             'is_active' => 'boolean',
         ]);
 
-        $oldBalance = $account->balance;
         $account->update($validated);
 
-        $message = "Account '{$account->name}' updated successfully! ✅";
-        if ($oldBalance != $validated['balance']) {
-            $difference = $validated['balance'] - $oldBalance;
-            $message .= " Balance " . ($difference > 0 ? 'increased' : 'decreased') . " by ৳" . number_format(abs($difference), 2);
-        }
-
-        return redirect()->route('accounts.show', $account)
-            ->with('success', $message);
+        return redirect()->back()->with('success', "অ্যাকাউন্ট সফলভাবে আপডেট হয়েছে।");
     }
 
     public function destroy(Account $account): RedirectResponse
     {
         if ($account->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized access to this account.');
+            abort(403);
         }
 
-        $accountName = $account->name;
-        $account->update(['is_active' => false]);
+        if ($account->transactions()->count() > 0) {
+            // Safe deactivation
+            $account->update(['is_active' => false]);
+            return redirect()->back()->with('warning', "অ্যাকাউন্টটি নিষ্ক্রিয় করা হয়েছে (যেহেতু লেনদেন বিদ্যমান)।");
+        }
 
-        return redirect()->route('accounts.index')
-            ->with('warning', "Account '{$accountName}' has been deactivated. ⚠️");
+        $account->delete();
+        return redirect()->back()->with('success', "অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে।");
     }
 }

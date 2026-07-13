@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- For iOS Safari (Apple devices) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -72,37 +73,47 @@
     <script>
         // Service Worker Registration for PWA
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then((registration) => {
-                        console.log('SW registered: ', registration);
+            @if(app()->environment('production'))
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then((registration) => {
+                            console.log('SW registered: ', registration);
 
-                        // Check for updates
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker
-                                    .controller) {
-                                    // New content available, notify user
-                                    if (confirm('New version available! Reload to update?')) {
-                                        window.location.reload();
+                            // Check for updates
+                            registration.addEventListener('updatefound', () => {
+                                const newWorker = registration.installing;
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker
+                                        .controller) {
+                                        // New content available, notify user
+                                        if (confirm('New version available! Reload to update?')) {
+                                            window.location.reload();
+                                        }
                                     }
-                                }
+                                });
                             });
+                        })
+                        .catch((registrationError) => {
+                            console.log('SW registration failed: ', registrationError);
                         });
-                    })
-                    .catch((registrationError) => {
-                        console.log('SW registration failed: ', registrationError);
-                    });
-            });
+                });
 
-            // Listen for messages from service worker
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                if (event.data && event.data.type === 'CACHE_UPDATED') {
-                    // Handle cache updates if needed
-                    console.log('Cache updated');
-                }
-            });
+                // Listen for messages from service worker
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'CACHE_UPDATED') {
+                        // Handle cache updates if needed
+                        console.log('Cache updated');
+                    }
+                });
+            @else
+                // Auto-unregister service workers in development mode to prevent routing & cache problems
+                navigator.serviceWorker.getRegistrations().then((registrations) => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                        console.log('SW unregistered successfully in development mode');
+                    }
+                });
+            @endif
         }
 
         // PWA Install Prompt (Optional)

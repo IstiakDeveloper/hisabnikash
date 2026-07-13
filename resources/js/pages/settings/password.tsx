@@ -12,25 +12,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/password';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Password settings',
-        href: edit().url,
-    },
-];
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Password() {
+    const { t } = useTranslation();
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
 
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: t('pin_settings', 'PIN Settings'),
+            href: edit().url,
+        },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Password settings" />
+            <Head title={t('pin_settings', 'PIN Settings')} />
 
             <SettingsLayout>
                 <div className="space-y-6">
-                    <HeadingSmall title="Update password" description="Ensure your account is using a long, random password to stay secure" />
+                    <HeadingSmall
+                        title={t('update_pin', 'Update PIN')}
+                        description={t('update_pin_settings_desc', 'Set or change your 4-digit login PIN')}
+                    />
 
                     <Form
                         {...PasswordController.update.form()}
@@ -53,54 +58,60 @@ export default function Password() {
                         {({ errors, processing, recentlySuccessful }) => (
                             <>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="current_password">Current password</Label>
+                                    <Label htmlFor="current_password">{t('current_pin', 'Current PIN')}</Label>
 
                                     <Input
                                         id="current_password"
                                         ref={currentPasswordInput}
                                         name="current_password"
                                         type="password"
-                                        className="mt-1 block w-full"
+                                        inputMode="numeric"
+                                        maxLength={4}
+                                        className="mt-1 block w-full tracking-[0.3em]"
                                         autoComplete="current-password"
-                                        placeholder="Current password"
+                                        placeholder={t('pin_placeholder', '0000')}
                                     />
 
                                     <InputError message={errors.current_password} />
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="password">New password</Label>
+                                    <Label htmlFor="password">{t('new_pin', 'New PIN')}</Label>
 
                                     <Input
                                         id="password"
                                         ref={passwordInput}
                                         name="password"
                                         type="password"
-                                        className="mt-1 block w-full"
+                                        inputMode="numeric"
+                                        maxLength={4}
+                                        className="mt-1 block w-full tracking-[0.3em]"
                                         autoComplete="new-password"
-                                        placeholder="New password"
+                                        placeholder={t('pin_placeholder', '0000')}
                                     />
 
                                     <InputError message={errors.password} />
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="password_confirmation">Confirm password</Label>
+                                    <Label htmlFor="password_confirmation">{t('confirm_pin', 'Confirm PIN')}</Label>
 
                                     <Input
                                         id="password_confirmation"
                                         name="password_confirmation"
                                         type="password"
-                                        className="mt-1 block w-full"
+                                        inputMode="numeric"
+                                        maxLength={4}
+                                        className="mt-1 block w-full tracking-[0.3em]"
                                         autoComplete="new-password"
-                                        placeholder="Confirm password"
+                                        placeholder={t('pin_placeholder', '0000')}
                                     />
 
                                     <InputError message={errors.password_confirmation} />
                                 </div>
 
                                 <div className="flex items-center gap-4">
-                                    <Button disabled={processing}>Save password</Button>
+                                    <Button disabled={processing}>{t('save_pin_btn', 'Save PIN')}</Button>
 
                                     <Transition
                                         show={recentlySuccessful}
@@ -109,7 +120,7 @@ export default function Password() {
                                         leave="transition ease-in-out"
                                         leaveTo="opacity-0"
                                     >
-                                        <p className="text-sm text-neutral-600">Saved</p>
+                                        <p className="text-sm text-neutral-600">{t('profile_saved', 'Saved')}</p>
                                     </Transition>
                                 </div>
                             </>

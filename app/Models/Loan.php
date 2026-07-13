@@ -13,6 +13,7 @@ class Loan extends Model
 
     protected $fillable = [
         'user_id',
+        'space_id',
         'type',
         'person_name',
         'person_phone',
@@ -22,7 +23,11 @@ class Loan extends Model
         'due_date',
         'note',
         'interest_rate',
-        'is_completed'
+        'is_completed',
+        'loan_type',
+        'monthly_installment',
+        'tenure_months',
+        'interest_paid_so_far'
     ];
 
     protected $casts = [
@@ -32,6 +37,9 @@ class Loan extends Model
         'loan_date' => 'date',
         'due_date' => 'date',
         'is_completed' => 'boolean',
+        'monthly_installment' => 'decimal:2',
+        'interest_paid_so_far' => 'decimal:2',
+        'tenure_months' => 'integer'
     ];
 
     public function user(): BelongsTo
@@ -39,9 +47,19 @@ class Loan extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function space(): BelongsTo
+    {
+        return $this->belongsTo(Space::class);
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(LoanPayment::class);
+    }
+
+    public function installments(): HasMany
+    {
+        return $this->hasMany(LoanInstallment::class);
     }
 
     // Calculate total paid amount

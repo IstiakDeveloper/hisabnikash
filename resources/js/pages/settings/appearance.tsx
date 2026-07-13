@@ -7,22 +7,28 @@ import { type BreadcrumbItem } from '@/types';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { appearance } from '@/routes';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Appearance settings',
-        href: appearance().url,
-    },
-];
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Appearance() {
+    const { t } = useTranslation();
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: t('appearance_settings', 'Appearance settings'),
+            href: appearance().url,
+        },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Appearance settings" />
+            <Head title={t('appearance_settings', 'Appearance settings')} />
 
             <SettingsLayout>
                 <div className="space-y-6">
-                    <HeadingSmall title="Appearance settings" description="Update your account's appearance settings" />
+                    <HeadingSmall
+                        title={t('appearance_settings', 'Appearance settings')}
+                        description={t('appearance_settings_desc', "Update your account's appearance settings")}
+                    />
                     <AppearanceTabs />
                 </div>
             </SettingsLayout>

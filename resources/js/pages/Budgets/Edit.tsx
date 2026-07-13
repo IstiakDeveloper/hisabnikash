@@ -2,6 +2,7 @@ import React, { FormEvent } from 'react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Category {
   id: number;
@@ -27,14 +28,22 @@ interface Budget {
 interface Props {
   budget: Budget;
   categories: Category[];
+  spaces: any[];
 }
 
-export default function Edit({ budget, categories }: Props) {
+export default function Edit({ budget, categories, spaces }: Props) {
+  const { t } = useTranslation();
+
+  const [selectedMonth, setSelectedMonth] = useState(
+    budget.start_date ? budget.start_date.substring(0, 7) : new Date().toISOString().substring(0, 7)
+  );
+
   const { data, setData, put, processing, errors } = useForm({
     name: budget.name,
     category_id: budget.category_id?.toString() || '',
+    space_id: budget.space_id?.toString() || (spaces.find((s: any) => s.is_default)?.id || spaces[0]?.id || ''),
     amount: budget.amount.toString(),
-    period: budget.period,
+    period: 'monthly',
     start_date: budget.start_date,
     end_date: budget.end_date,
     note: budget.note || '',
@@ -43,20 +52,34 @@ export default function Edit({ budget, categories }: Props) {
     is_active: budget.is_active,
   });
 
+  const handleMonthChange = (monthStr: string) => {
+    setSelectedMonth(monthStr);
+    if (!monthStr) return;
+    const [year, month] = monthStr.split('-').map(Number);
+    const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+    
+    setData((prev: any) => ({
+      ...prev,
+      start_date: firstDay,
+      end_date: lastDay,
+    }));
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     put(`/budgets/${budget.id}`);
   };
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this budget?')) {
+    if (confirm(t('delete_budget_confirm', 'Are you sure you want to delete this budget limit?'))) {
       router.delete(`/budgets/${budget.id}`);
     }
   };
 
   return (
     <AuthenticatedLayout showFAB={false}>
-      <Head title="Edit Budget" />
+      <Head title={t('edit_budget', 'Edit Budget Limit')} />
 
       <div className="py-6 lg:py-12">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -67,12 +90,12 @@ export default function Edit({ budget, categories }: Props) {
               className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mb-4"
             >
               <ArrowLeftIcon className="h-4 w-4 mr-1" />
-              Back to budgets
+              {t('back_to_budgets', 'Back to budgets')}
             </Link>
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Edit Budget
+                  {t('edit_budget', 'Edit Budget Limit')}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {budget.name}
@@ -83,7 +106,7 @@ export default function Edit({ budget, categories }: Props) {
                 className="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-600 rounded-lg text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20"
               >
                 <TrashIcon className="h-4 w-4 mr-1" />
-                Delete
+                {t('delete', 'Delete')}
               </button>
             </div>
           </div>
@@ -94,7 +117,7 @@ export default function Edit({ budget, categories }: Props) {
               {/* Budget Name */}
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Budget Name <span className="text-red-500">*</span>
+                  {t('budget_name', 'Budget Name')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -109,10 +132,34 @@ export default function Edit({ budget, categories }: Props) {
                 )}
               </div>
 
+              {/* Space Selection */}
+              <div>
+                <label htmlFor="space_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('space', 'Space / Profile')} <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="space_id"
+                  value={data.space_id}
+                  onChange={(e) => setData('space_id', e.target.value)}
+                  className="mt-1 block w-full px-4 py-2.5 rounded-lg border-gray-300 dark:border-gray-650 dark:bg-gray-750 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-700"
+                  required
+                >
+                  <option value="">{t('select_space', 'Select Space')}</option>
+                  {spaces.map((space: any) => (
+                    <option key={space.id} value={space.id}>
+                      {space.name} ({space.type})
+                    </option>
+                  ))}
+                </select>
+                {errors.space_id && (
+                  <p className="mt-1 text-sm text-red-650">{errors.space_id}</p>
+                )}
+              </div>
+
               {/* Category */}
               <div>
                 <label htmlFor="category_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Category (Optional)
+                  {t('category_optional', 'Category (Optional)')}
                 </label>
                 <select
                   id="category_id"
@@ -120,7 +167,7 @@ export default function Edit({ budget, categories }: Props) {
                   onChange={(e) => setData('category_id', e.target.value)}
                   className="mt-1 block w-full px-4 py-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 >
-                  <option value="">All Categories (Overall Budget)</option>
+                  <option value="">{t('all_categories_overall', 'All Categories (Overall Budget)')}</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.icon} {category.name}
@@ -135,7 +182,7 @@ export default function Edit({ budget, categories }: Props) {
               {/* Amount */}
               <div>
                 <label htmlFor="amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Budget Amount (৳) <span className="text-red-500">*</span>
+                  {t('budget_amount_currency', 'Budget Amount (৳)')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -152,75 +199,31 @@ export default function Edit({ budget, categories }: Props) {
                 )}
               </div>
 
-              {/* Period */}
+              {/* Budget Month Picker */}
               <div>
-                <label htmlFor="period" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Budget Period <span className="text-red-500">*</span>
+                <label htmlFor="budget_month" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('budget_month', 'Budget Month')} <span className="text-red-500">*</span>
                 </label>
-                <select
-                  id="period"
-                  value={data.period}
-                  onChange={(e) => setData('period', e.target.value)}
-                  className="mt-1 block w-full px-4 py-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                <input
+                  type="month"
+                  id="budget_month"
+                  value={selectedMonth}
+                  onChange={(e) => handleMonthChange(e.target.value)}
+                  className="mt-1 block w-full px-4 py-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-700"
                   required
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-                {errors.period && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.period}</p>
-                )}
-              </div>
-
-              {/* Date Range */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Start Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    id="start_date"
-                    value={data.start_date}
-                    onChange={(e) => setData('start_date', e.target.value)}
-                    className="mt-1 block w-full px-4 py-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    required
-                  />
-                  {errors.start_date && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.start_date}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="end_date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    End Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    id="end_date"
-                    value={data.end_date}
-                    onChange={(e) => setData('end_date', e.target.value)}
-                    className="mt-1 block w-full px-4 py-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    required
-                  />
-                  {errors.end_date && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.end_date}</p>
-                  )}
-                </div>
+                />
               </div>
 
               {/* Alert Settings */}
               <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  Alert Settings
+                  {t('alert_settings', 'Alert Settings')}
                 </h3>
 
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="alert_percentage" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Alert Percentage (%)
+                      {t('alert_percentage', 'Alert Percentage (%)')}
                     </label>
                     <input
                       type="number"
@@ -245,7 +248,7 @@ export default function Edit({ budget, categories }: Props) {
                       className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
                     />
                     <label htmlFor="notify_on_exceed" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                      Send notification when budget is exceeded
+                      {t('notify_on_exceed_checkbox', 'Send notification when budget is exceeded')}
                     </label>
                   </div>
 
@@ -258,7 +261,7 @@ export default function Edit({ budget, categories }: Props) {
                       className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
                     />
                     <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                      Keep budget active
+                      {t('keep_budget_active', 'Keep budget active')}
                     </label>
                   </div>
                 </div>
@@ -267,7 +270,7 @@ export default function Edit({ budget, categories }: Props) {
               {/* Note */}
               <div>
                 <label htmlFor="note" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Note (Optional)
+                  {t('note_optional', 'Note (Optional)')}
                 </label>
                 <textarea
                   id="note"
@@ -288,14 +291,14 @@ export default function Edit({ budget, categories }: Props) {
                 href="/budgets"
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
               >
-                Cancel
+                {t('cancel', 'Cancel')}
               </Link>
               <button
                 type="submit"
                 disabled={processing}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {processing ? 'Saving...' : 'Save Changes'}
+                {processing ? t('saving', 'Saving...') : t('save_changes', 'Save Changes')}
               </button>
             </div>
           </form>

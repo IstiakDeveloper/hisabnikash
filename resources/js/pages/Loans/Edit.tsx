@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head, router, Link } from '@inertiajs/react';
 import LoanForm from '@/components/Forms/LoanForm';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Loan {
   id: number;
@@ -21,12 +22,14 @@ interface Props {
 }
 
 export default function Edit({ loan }: Props) {
+  const { t } = useTranslation();
+
   const handleSubmit = (data: any) => {
     router.put(`/loans/${loan.id}`, data);
   };
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this loan?')) {
+    if (confirm(t('delete_loan_confirm', 'Are you sure you want to delete this loan?'))) {
       router.delete(`/loans/${loan.id}`);
     }
   };
@@ -44,24 +47,24 @@ export default function Edit({ loan }: Props) {
             </Link>
             <div>
               <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Edit Loan
+                {t('edit_loan', 'Edit Loan')}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Update loan details
+                {t('edit_loan_desc', 'Update loan details')}
               </p>
             </div>
           </div>
           <button
             onClick={handleDelete}
             className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-            title="Delete Loan"
+            title={t('delete_loan_title', 'Delete Loan')}
           >
             <TrashIcon className="h-5 w-5" />
           </button>
         </div>
       }
     >
-      <Head title="Edit Loan" />
+      <Head title={t('edit_loan', 'Edit Loan')} />
 
       <div className="p-4 lg:p-6">
         <div className="max-w-2xl mx-auto">
@@ -69,7 +72,7 @@ export default function Edit({ loan }: Props) {
             <LoanForm
               loan={loan}
               onSubmit={handleSubmit}
-              submitLabel="Update Loan"
+              submitLabel={t('update_loan', 'Update Loan')}
             />
           </div>
         </div>

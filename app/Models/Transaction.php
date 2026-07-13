@@ -14,22 +14,34 @@ class Transaction extends Model
         'user_id',
         'account_id',
         'category_id',
+        'space_id',
         'type',
         'amount',
         'description',
         'transaction_date',
         'note',
-        'receipt_image'
+        'receipt_image',
+        'is_fixed',
+        'payment_method',
+        'is_recurring',
+        'recurrence_period',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'transaction_date' => 'date',
+        'is_fixed' => 'boolean',
+        'is_recurring' => 'boolean',
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function space(): BelongsTo
+    {
+        return $this->belongsTo(Space::class);
     }
 
     public function account(): BelongsTo

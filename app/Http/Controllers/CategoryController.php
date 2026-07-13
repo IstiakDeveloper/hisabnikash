@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\Space;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -16,20 +17,42 @@ class CategoryController extends Controller
     public function index(): Response
     {
         $categories = Category::where('user_id', auth()->id())
+            ->with(['space'])
             ->withCount('transactions')
             ->orderBy('type', 'asc')
             ->orderBy('is_active', 'desc')
             ->orderBy('name')
             ->get();
 
+        $spaces = Space::where('user_id', auth()->id())->get(['id', 'name']);
+
         return Inertia::render('Categories/Index', [
             'categories' => $categories,
+            'spaces' => $spaces
         ]);
     }
 
     public function create(): Response
     {
-        return Inertia::render('Categories/Create');
+        $spaces = Space::where('user_id', auth()->id())->get(['id', 'name']);
+        
+        return Inertia::render('Categories/Create', [
+            'spaces' => $spaces
+        ]);
+    }
+
+    public function edit(Category $category): Response
+    {
+        if ($category->user_id !== auth()->id()) {
+            abort(403);
+        }
+        
+        $spaces = Space::where('user_id', auth()->id())->get(['id', 'name']);
+        
+        return Inertia::render('Categories/Edit', [
+            'category' => $category,
+            'spaces' => $spaces
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -40,36 +63,28 @@ class CategoryController extends Controller
             'icon' => 'required|string|max:10',
             'color' => 'required|string|max:7',
             'monthly_limit' => 'nullable|numeric|min:0',
+            'is_fixed' => 'required|boolean',
+            'space_id' => 'required|exists:spaces,id',
             'is_active' => 'boolean',
         ]);
+
+        // Validate space ownership
+        Space::where('id', $validated['space_id'])->where('user_id', auth()->id())->firstOrFail();
 
         Category::create([
             ...$validated,
             'user_id' => auth()->id(),
             'is_default' => false,
+            'is_active' => $request->has('is_active') ? $validated['is_active'] : true
         ]);
 
-        return redirect()->route('categories.index')
-            ->with('message', 'Category created successfully!');
-    }
-
-    public function edit(Category $category): Response
-    {
-        // Check if category belongs to current user
-        if ($category->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized access to this category.');
-        }
-
-        return Inertia::render('Categories/Edit', [
-            'category' => $category,
-        ]);
+        return redirect()->back()->with('message', 'ক্যাটাগরি সফলভাবে তৈরি হয়েছে।');
     }
 
     public function update(Request $request, Category $category): RedirectResponse
     {
-        // Check if category belongs to current user
         if ($category->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized access to this category.');
+            abort(403);
         }
 
         $validated = $request->validate([
@@ -78,34 +93,35 @@ class CategoryController extends Controller
             'icon' => 'required|string|max:10',
             'color' => 'required|string|max:7',
             'monthly_limit' => 'nullable|numeric|min:0',
+            'is_fixed' => 'required|boolean',
+            'space_id' => 'required|exists:spaces,id',
             'is_active' => 'boolean',
         ]);
 
+        // Validate space ownership
+        Space::where('id', $validated['space_id'])->where('user_id', auth()->id())->firstOrFail();
+
         $category->update($validated);
 
-        return redirect()->route('categories.index')
-            ->with('message', 'Category updated successfully!');
+        return redirect()->back()->with('message', 'ক্যাটাগরি সফলভাবে আপডেট হয়েছে।');
     }
 
     public function destroy(Category $category): RedirectResponse
     {
-        // Check if category belongs to current user
         if ($category->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized access to this category.');
+            abort(403);
         }
 
-        // Check if category is being used
         if ($category->transactions()->count() > 0) {
-            return back()->with('error', 'Cannot delete category with existing transactions.');
+            return back()->with('error', 'এই ক্যাটাগরির অধীনে লেনদেন রয়েছে। ডিলেট করা যাবে না।');
         }
 
         if ($category->budgets()->count() > 0) {
-            return back()->with('error', 'Cannot delete category with existing budgets.');
+            return back()->with('error', 'এই ক্যাটাগরির অধীনে একটি বাজেট রয়েছে। ডিলেট করা যাবে না।');
         }
 
         $category->delete();
 
-        return redirect()->route('categories.index')
-            ->with('message', 'Category deleted successfully!');
+        return redirect()->back()->with('message', 'ক্যাটাগরি সফলভাবে মুছে ফেলা হয়েছে।');
     }
 }

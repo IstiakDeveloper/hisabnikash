@@ -4,24 +4,27 @@ namespace App\Http\Controllers;
 
 use App\Models\Budget;
 use App\Models\Category;
+use App\Models\Space;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class BudgetController extends Controller
 {
-    use AuthorizesRequests;
-    /**
-     * Display a listing of budgets
-     */
     public function index(Request $request): Response
     {
-        $query = Budget::with(['category'])
-            ->where('user_id', auth()->id());
+        $user = auth()->user();
+        $spaceId = $request->query('space_id');
 
-        // Filter by status
+        $query = Budget::with(['category', 'space'])
+            ->where('user_id', $user->id);
+
+        if ($spaceId && $spaceId !== 'combined') {
+            $query->where('space_id', $spaceId);
+        }
+
+        // Apply filters
         if ($request->has('status')) {
             if ($request->status === 'active') {
                 $query->where('is_active', true)
@@ -34,90 +37,72 @@ class BudgetController extends Controller
             }
         }
 
-        // Filter by period
-        if ($request->has('period') && $request->period) {
-            $query->where('period', $request->period);
+        $budgets = $query->latest()->get();
+        
+        // Recalculate spent amounts
+        foreach ($budgets as $b) {
+            $b->updateSpentAmount();
         }
 
-        $budgets = $query->latest()->paginate(15)->through(function ($budget) {
-            // Update spent amount before displaying
-            $budget->updateSpentAmount();
+        $categories = Category::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where('type', 'expense')
+            ->orderBy('name')
+            ->get(['id', 'name', 'color', 'icon', 'space_id']);
 
-            return [
-                'id' => $budget->id,
-                'name' => $budget->name,
-                'amount' => $budget->amount,
-                'spent_amount' => $budget->spent_amount,
-                'remaining' => $budget->remaining,
-                'spent_percentage' => $budget->spent_percentage,
-                'period' => $budget->period,
-                'start_date' => $budget->start_date->format('Y-m-d'),
-                'end_date' => $budget->end_date->format('Y-m-d'),
-                'category' => $budget->category ? [
-                    'id' => $budget->category->id,
-                    'name' => $budget->category->name,
-                    'color' => $budget->category->color,
-                    'icon' => $budget->category->icon,
-                ] : null,
-                'is_active' => $budget->is_active,
-                'is_exceeded' => $budget->isExceeded(),
-                'should_alert' => $budget->shouldAlert(),
-                'status_color' => $budget->status_color,
-                'status_text' => $budget->status_text,
-                'note' => $budget->note,
-            ];
-        });
+        $spaces = Space::where('user_id', $user->id)->get(['id', 'name', 'type']);
 
-        // Get summary statistics
-        $activeBudgets = Budget::where('user_id', auth()->id())
+        $summaryQuery = Budget::where('user_id', $user->id)
             ->where('is_active', true)
             ->where('start_date', '<=', now())
-            ->where('end_date', '>=', now())
-            ->get();
+            ->where('end_date', '>=', now());
 
-        $activeBudgets->each->updateSpentAmount();
+        if ($spaceId && $spaceId !== 'combined') {
+            $summaryQuery->where('space_id', $spaceId);
+        }
+        $activeBudgets = $summaryQuery->get();
 
         $summary = [
-            'total_budget' => $activeBudgets->sum('amount'),
-            'total_spent' => $activeBudgets->sum('spent_amount'),
-            'total_remaining' => $activeBudgets->sum('remaining'),
+            'total_budget' => (float)$activeBudgets->sum('amount'),
+            'total_spent' => (float)$activeBudgets->sum('spent_amount'),
+            'total_remaining' => (float)$activeBudgets->sum('remaining'),
             'exceeded_count' => $activeBudgets->filter->isExceeded()->count(),
-            'alert_count' => $activeBudgets->filter->shouldAlert()->count(),
         ];
 
         return Inertia::render('Budgets/Index', [
             'budgets' => $budgets,
+            'categories' => $categories,
+            'spaces' => $spaces,
             'summary' => $summary,
-            'filters' => $request->only(['status', 'period'])
+            'filters' => $request->only(['status', 'space_id'])
         ]);
     }
 
-    /**
-     * Show the form for creating a new budget
-     */
-    public function create(): Response
+    public function create(): \Inertia\Response
     {
-        $categories = Category::where('user_id', auth()->id())
+        $user = auth()->user();
+        $categories = Category::where('user_id', $user->id)
             ->where('is_active', true)
             ->where('type', 'expense')
             ->orderBy('name')
-            ->get(['id', 'name', 'color', 'icon', 'type']);
+            ->get(['id', 'name', 'color', 'icon', 'space_id']);
+
+        $spaces = Space::where('user_id', $user->id)->get(['id', 'name', 'type']);
 
         return Inertia::render('Budgets/Create', [
-            'categories' => $categories
+            'categories' => $categories,
+            'spaces' => $spaces,
         ]);
     }
 
-    /**
-     * Store a newly created budget
-     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
-            'amount' => 'required|numeric|min:0',
-            'period' => 'required|in:daily,weekly,monthly,yearly',
+            'space_id' => 'required|exists:spaces,id',
+            'amount' => 'required|numeric|min:0.01',
+            'period' => 'nullable|in:daily,weekly,monthly,yearly',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'note' => 'nullable|string',
@@ -125,137 +110,67 @@ class BudgetController extends Controller
             'notify_on_exceed' => 'boolean',
         ]);
 
-        $validated['user_id'] = auth()->id();
-        $validated['alert_percentage'] = $validated['alert_percentage'] ?? 80;
-        $validated['notify_on_exceed'] = $validated['notify_on_exceed'] ?? true;
-
-        // Verify category belongs to user if provided
-        if (isset($validated['category_id'])) {
-            $category = Category::where('id', $validated['category_id'])
-                ->where('user_id', auth()->id())
-                ->firstOrFail();
+        // Validate space and category ownership
+        Space::where('id', $validated['space_id'])->where('user_id', auth()->id())->firstOrFail();
+        if ($validated['category_id']) {
+            Category::where('id', $validated['category_id'])->where('user_id', auth()->id())->firstOrFail();
         }
 
-        $budget = Budget::create($validated);
-        $budget->updateSpentAmount();
-
-        return redirect()->route('budgets.index')
-            ->with('success', 'বাজেট সফলভাবে তৈরি হয়েছে!');
-    }
-
-    /**
-     * Display the specified budget
-     */
-    public function show(Budget $budget): Response
-    {
-        $this->authorize('view', $budget);
-
-        $budget->load('category');
-        $budget->updateSpentAmount();
-
-        // Get transactions related to this budget
-        $transactionsQuery = $budget->user->transactions()
-            ->with(['account', 'category'])
-            ->where('type', 'expense')
-            ->whereBetween('transaction_date', [$budget->start_date, $budget->end_date]);
-
-        if ($budget->category_id) {
-            $transactionsQuery->where('category_id', $budget->category_id);
-        }
-
-        $transactions = $transactionsQuery->latest('transaction_date')->get()->map(function ($transaction) {
-            return [
-                'id' => $transaction->id,
-                'description' => $transaction->description,
-                'amount' => $transaction->amount,
-                'transaction_date' => $transaction->transaction_date->format('Y-m-d'),
-                'category' => [
-                    'name' => $transaction->category->name,
-                    'color' => $transaction->category->color,
-                    'icon' => $transaction->category->icon,
-                ],
-                'account' => [
-                    'name' => $transaction->account->name,
-                    'type' => $transaction->account->type,
-                ],
-            ];
-        });
-
-        return Inertia::render('Budgets/Show', [
-            'budget' => [
-                'id' => $budget->id,
-                'name' => $budget->name,
-                'amount' => $budget->amount,
-                'spent_amount' => $budget->spent_amount,
-                'remaining' => $budget->remaining,
-                'spent_percentage' => $budget->spent_percentage,
-                'period' => $budget->period,
-                'start_date' => $budget->start_date->format('Y-m-d'),
-                'end_date' => $budget->end_date->format('Y-m-d'),
-                'category' => $budget->category ? [
-                    'id' => $budget->category->id,
-                    'name' => $budget->category->name,
-                    'color' => $budget->category->color,
-                    'icon' => $budget->category->icon,
-                ] : null,
-                'is_active' => $budget->is_active,
-                'is_exceeded' => $budget->isExceeded(),
-                'should_alert' => $budget->shouldAlert(),
-                'status_color' => $budget->status_color,
-                'status_text' => $budget->status_text,
-                'note' => $budget->note,
-                'alert_percentage' => $budget->alert_percentage,
-                'notify_on_exceed' => $budget->notify_on_exceed,
-            ],
-            'transactions' => $transactions
+        $budget = Budget::create([
+            'user_id' => auth()->id(),
+            'space_id' => $validated['space_id'],
+            'category_id' => $validated['category_id'],
+            'name' => $validated['name'],
+            'amount' => $validated['amount'],
+            'period' => 'monthly',
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
+            'note' => $validated['note'],
+            'alert_percentage' => $validated['alert_percentage'] ?? 80,
+            'notify_on_exceed' => $request->has('notify_on_exceed') ? $validated['notify_on_exceed'] : true,
+            'is_active' => true,
+            'spent_amount' => 0
         ]);
+
+        $budget->updateSpentAmount();
+
+        return redirect()->back()->with('success', 'বাজেট সফলভাবে তৈরি হয়েছে!');
     }
 
-    /**
-     * Show the form for editing budget
-     */
-    public function edit(Budget $budget): Response
+    public function edit(Budget $budget): \Inertia\Response
     {
-        $this->authorize('update', $budget);
+        if ($budget->user_id !== auth()->id()) {
+            abort(403);
+        }
 
-        $categories = Category::where('user_id', auth()->id())
+        $user = auth()->user();
+        $categories = Category::where('user_id', $user->id)
             ->where('is_active', true)
             ->where('type', 'expense')
             ->orderBy('name')
-            ->get(['id', 'name', 'color', 'icon', 'type']);
+            ->get(['id', 'name', 'color', 'icon', 'space_id']);
 
-        $budget->load('category');
+        $spaces = Space::where('user_id', $user->id)->get(['id', 'name', 'type']);
 
         return Inertia::render('Budgets/Edit', [
-            'budget' => [
-                'id' => $budget->id,
-                'name' => $budget->name,
-                'amount' => $budget->amount,
-                'category_id' => $budget->category_id,
-                'period' => $budget->period,
-                'start_date' => $budget->start_date->format('Y-m-d'),
-                'end_date' => $budget->end_date->format('Y-m-d'),
-                'note' => $budget->note,
-                'alert_percentage' => $budget->alert_percentage,
-                'notify_on_exceed' => $budget->notify_on_exceed,
-                'is_active' => $budget->is_active,
-            ],
-            'categories' => $categories
+            'budget' => $budget,
+            'categories' => $categories,
+            'spaces' => $spaces,
         ]);
     }
 
-    /**
-     * Update the specified budget
-     */
     public function update(Request $request, Budget $budget): RedirectResponse
     {
-        $this->authorize('update', $budget);
+        if ($budget->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
-            'amount' => 'required|numeric|min:0',
-            'period' => 'required|in:daily,weekly,monthly,yearly',
+            'space_id' => 'required|exists:spaces,id',
+            'amount' => 'required|numeric|min:0.01',
+            'period' => 'nullable|in:daily,weekly,monthly,yearly',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'note' => 'nullable|string',
@@ -264,45 +179,94 @@ class BudgetController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        // Verify category belongs to user if provided
-        if (isset($validated['category_id'])) {
-            $category = Category::where('id', $validated['category_id'])
-                ->where('user_id', auth()->id())
-                ->firstOrFail();
+        // Validate space and category ownership
+        Space::where('id', $validated['space_id'])->where('user_id', auth()->id())->firstOrFail();
+        if ($validated['category_id']) {
+            Category::where('id', $validated['category_id'])->where('user_id', auth()->id())->firstOrFail();
         }
 
+        $validated['period'] = 'monthly';
         $budget->update($validated);
         $budget->updateSpentAmount();
 
-        return redirect()->route('budgets.index')
-            ->with('success', 'বাজেট সফলভাবে আপডেট হয়েছে!');
+        return redirect()->back()->with('success', 'বাজেট সফলভাবে আপডেট হয়েছে!');
     }
 
-    /**
-     * Remove the specified budget
-     */
     public function destroy(Budget $budget): RedirectResponse
     {
-        $this->authorize('delete', $budget);
+        if ($budget->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $budget->delete();
 
-        return redirect()->route('budgets.index')
-            ->with('success', 'বাজেট সফলভাবে মুছে ফেলা হয়েছে!');
+        return redirect()->back()->with('success', 'বাজেট সফলভাবে মুছে ফেলা হয়েছে!');
     }
 
-    /**
-     * Refresh/recalculate all budgets spent amounts
-     */
-    public function refresh(): RedirectResponse
+    public function cloneLastMonth(Request $request): RedirectResponse
     {
-        $budgets = Budget::where('user_id', auth()->id())->get();
-
-        foreach ($budgets as $budget) {
-            $budget->updateSpentAmount();
+        $user = auth()->user();
+        
+        // Target month is passed (e.g. '2026-07') or defaults to current month
+        $targetMonthStr = $request->input('target_month', now()->format('Y-m'));
+        
+        try {
+            $targetDate = \Carbon\Carbon::createFromFormat('Y-m', $targetMonthStr);
+        } catch (\Exception $e) {
+            $targetDate = now();
         }
-
-        return redirect()->back()
-            ->with('success', 'সব বাজেট আপডেট হয়েছে!');
+        
+        $targetMonthStart = $targetDate->copy()->startOfMonth()->toDateString();
+        $targetMonthEnd = $targetDate->copy()->endOfMonth()->toDateString();
+        
+        $sourceDate = $targetDate->copy()->subMonth();
+        $sourceMonthStart = $sourceDate->copy()->startOfMonth()->toDateString();
+        $sourceMonthEnd = $sourceDate->copy()->endOfMonth()->toDateString();
+        
+        // Find last month's budgets
+        $oldBudgets = Budget::where('user_id', $user->id)
+            ->whereBetween('start_date', [$sourceMonthStart, $sourceMonthEnd])
+            ->get();
+            
+        if ($oldBudgets->isEmpty()) {
+            return redirect()->back()->with('error', 'গত মাসে কোনো বাজেট পাওয়া যায়নি। দয়া করে ম্যানুয়ালি বাজেট তৈরি করুন।');
+        }
+        
+        $clonedCount = 0;
+        foreach ($oldBudgets as $oldBudget) {
+            // Avoid duplicate copy by checking if a budget with same space/category/name exists in target month
+            $exists = Budget::where('user_id', $user->id)
+                ->where('space_id', $oldBudget->space_id)
+                ->where('category_id', $oldBudget->category_id)
+                ->where('name', $oldBudget->name)
+                ->where('start_date', $targetMonthStart)
+                ->exists();
+                
+            if (!$exists) {
+                $newBudget = Budget::create([
+                    'user_id' => $user->id,
+                    'space_id' => $oldBudget->space_id,
+                    'category_id' => $oldBudget->category_id,
+                    'name' => $oldBudget->name,
+                    'amount' => $oldBudget->amount,
+                    'period' => 'monthly',
+                    'start_date' => $targetMonthStart,
+                    'end_date' => $targetMonthEnd,
+                    'note' => $oldBudget->note,
+                    'alert_percentage' => $oldBudget->alert_percentage,
+                    'notify_on_exceed' => $oldBudget->notify_on_exceed,
+                    'is_active' => true,
+                    'spent_amount' => 0
+                ]);
+                $newBudget->updateSpentAmount();
+                $clonedCount++;
+            }
+        }
+        
+        if ($clonedCount === 0) {
+            return redirect()->back()->with('warning', 'গত মাসের সমস্ত বাজেট ইতিমধ্যে এই মাসে ক্লোন করা আছে।');
+        }
+        
+        return redirect()->back()->with('success', "গত মাসের {$clonedCount}টি বাজেট সফলভাবে ক্লোন করা হয়েছে।");
     }
 }

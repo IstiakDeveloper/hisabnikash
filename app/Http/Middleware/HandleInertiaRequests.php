@@ -45,21 +45,44 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? [
+                    'id' => $request->user()->id,
+                    'name' => $request->user()->name,
+                    'email' => $request->user()->email,
+                    'username' => $request->user()->username,
+                    'currency' => $request->user()->currency,
+                    'timezone' => $request->user()->timezone,
+                    'language' => $request->user()->language,
+                    'auto_logout_minutes' => $request->user()->auto_logout_minutes,
+                    'has_pin' => ! empty($request->user()->pin_code),
+                    'has_biometric' => ! empty($request->user()->biometric_credential_id),
+                    'two_factor_enabled' => ! empty($request->user()->two_factor_confirmed_at),
+                ] : null,
             ],
+            'locale' => app()->getLocale(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
 
-            // Flash Messages
+            // Flash Messages (one-time session alerts)
             'flash' => [
-                'message' => fn() => $request->session()->get('message'),
-                'success' => fn() => $request->session()->get('success'),
-                'error' => fn() => $request->session()->get('error'),
-                'warning' => fn() => $request->session()->get('warning'),
-                'info' => fn() => $request->session()->get('info'),
+                'message' => fn () => $request->session()->get('message'),
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info' => fn () => $request->session()->get('info'),
             ],
+
+            // Auth status (e.g. password reset link sent)
+            'status' => fn () => $request->session()->get('status'),
 
             // Financial Summary (only for authenticated users)
             'financialSummary' => $request->user() ? $this->getFinancialSummary($request->user()->id) : null,
+
+            // Active Budgets for the current month
+            'activeBudgets' => $request->user() ? \App\Models\Budget::where('user_id', $request->user()->id)
+                ->where('is_active', true)
+                ->where('start_date', '<=', now()->toDateString())
+                ->where('end_date', '>=', now()->toDateString())
+                ->get(['id', 'name', 'category_id', 'space_id', 'amount', 'spent_amount']) : [],
         ];
     }
 

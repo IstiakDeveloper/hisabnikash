@@ -2,11 +2,12 @@ import React from 'react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { formatCurrency } from '@/utils/formatters';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   ArrowLeftIcon,
   PencilIcon,
   TrashIcon,
-  CalendarIcon,
+  CalendarDaysIcon,
   ChartBarIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
@@ -63,8 +64,10 @@ interface Props {
 }
 
 export default function Show({ budget, transactions }: Props) {
+  const { t } = useTranslation();
+
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this budget?')) {
+    if (confirm(t('delete_budget_confirm', 'Are you sure you want to delete this budget limit?'))) {
       router.delete(`/budgets/${budget.id}`);
     }
   };
@@ -74,7 +77,7 @@ export default function Show({ budget, transactions }: Props) {
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
           <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
-          Budget Exceeded
+          {t('budget_exceeded', 'Budget Exceeded')}
         </span>
       );
     }
@@ -82,24 +85,24 @@ export default function Show({ budget, transactions }: Props) {
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
           <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
-          Warning: {budget.spent_percentage.toFixed(1)}% used
+          {t('warning', 'Warning')}: {budget.spent_percentage.toFixed(1)}% {t('used', 'used')}
         </span>
       );
     }
     return (
       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
         <CheckCircleIcon className="w-4 h-4 mr-1" />
-        Normal
+        {t('normal', 'Normal')}
       </span>
     );
   };
 
   const getPeriodLabel = (period: string) => {
     const labels: Record<string, string> = {
-      daily: 'Daily',
-      weekly: 'Weekly',
-      monthly: 'Monthly',
-      yearly: 'Yearly',
+      daily: t('daily', 'Daily'),
+      weekly: t('weekly', 'Weekly'),
+      monthly: t('monthly', 'Monthly'),
+      yearly: t('yearly', 'Yearly'),
     };
     return labels[period] || period;
   };
@@ -116,7 +119,7 @@ export default function Show({ budget, transactions }: Props) {
 
   return (
     <AuthenticatedLayout showFAB={false}>
-      <Head title={`${budget.name} - Budget Details`} />
+      <Head title={`${budget.name} - ${t('budget_details', 'Budget Details')}`} />
 
       <div className="py-6 lg:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -127,7 +130,7 @@ export default function Show({ budget, transactions }: Props) {
               className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mb-4"
             >
               <ArrowLeftIcon className="h-4 w-4 mr-1" />
-              Back to budget list
+              {t('back_to_budget_list', 'Back to budget list')}
             </Link>
             <div className="md:flex md:items-center md:justify-between">
               <div className="flex-1">
@@ -141,7 +144,7 @@ export default function Show({ budget, transactions }: Props) {
                 </div>
                 {budget.category && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Category: {budget.category.name}
+                    {t('category_label', 'Category')}: {budget.category.name}
                   </p>
                 )}
               </div>
@@ -151,14 +154,14 @@ export default function Show({ budget, transactions }: Props) {
                   className="inline-flex items-center px-4 py-2 border border-red-300 dark:border-red-600 rounded-lg shadow-sm text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20"
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
-                  Delete
+                  {t('delete', 'Delete')}
                 </button>
                 <Link
                   href={`/budgets/${budget.id}/edit`}
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <PencilIcon className="h-4 w-4 mr-2" />
-                  Edit
+                  {t('edit', 'Edit')}
                 </Link>
               </div>
             </div>
@@ -171,7 +174,7 @@ export default function Show({ budget, transactions }: Props) {
               <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Budget Summary
+                    {t('budget_summary', 'Budget Summary')}
                   </h3>
                   {getStatusBadge()}
                 </div>
@@ -180,7 +183,7 @@ export default function Show({ budget, transactions }: Props) {
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Spending Progress
+                      {t('spending_progress', 'Spending Progress')}
                     </span>
                     <span className={cn(
                       "text-2xl font-bold",
@@ -205,19 +208,19 @@ export default function Show({ budget, transactions }: Props) {
                 {/* Budget Numbers */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Budget</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('total_budget', 'Total Budget')}</p>
                     <p className="text-xl font-bold text-gray-900 dark:text-white">
                       {formatCurrency(budget.amount)}
                     </p>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Spent</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('spent', 'Spent')}</p>
                     <p className="text-xl font-bold text-red-600 dark:text-red-400">
                       {formatCurrency(budget.spent_amount)}
                     </p>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Remaining</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('remaining', 'Remaining')}</p>
                     <p className="text-xl font-bold text-green-600 dark:text-green-400">
                       {formatCurrency(budget.remaining)}
                     </p>
@@ -227,32 +230,32 @@ export default function Show({ budget, transactions }: Props) {
                 {/* Additional Info */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Period</span>
+                    <span className="text-gray-500 dark:text-gray-400">{t('period', 'Period')}</span>
                     <span className="font-medium text-gray-900 dark:text-white">
                       {getPeriodLabel(budget.period)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Start Date</span>
+                    <span className="text-gray-500 dark:text-gray-400">{t('start_date', 'Start Date')}</span>
                     <span className="font-medium text-gray-900 dark:text-white">
                       {new Date(budget.start_date).toLocaleDateString('bn-BD')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">End Date</span>
+                    <span className="text-gray-500 dark:text-gray-400">{t('end_date', 'End Date')}</span>
                     <span className="font-medium text-gray-900 dark:text-white">
                       {new Date(budget.end_date).toLocaleDateString('bn-BD')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">বাকি দিন</span>
+                    <span className="text-gray-500 dark:text-gray-400">{t('days_remaining', 'Days Remaining')}</span>
                     <span className={cn(
                       "font-medium",
                       daysRemaining < 0 ? "text-red-600 dark:text-red-400" :
                       daysRemaining < 7 ? "text-yellow-600 dark:text-yellow-400" :
                       "text-gray-900 dark:text-white"
                     )}>
-                      {daysRemaining < 0 ? 'সময় শেষ' : `${daysRemaining} দিন`}
+                      {daysRemaining < 0 ? t('time_expired', 'Time expired') : `${daysRemaining} ${t('days_unit', 'days')}`}
                     </span>
                   </div>
                 </div>
@@ -261,7 +264,7 @@ export default function Show({ budget, transactions }: Props) {
                 {budget.note && (
                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <p className="text-sm text-gray-700 dark:text-gray-300">
-                      <span className="font-medium">নোট:</span> {budget.note}
+                      <span className="font-medium">{t('note_label', 'Note')}:</span> {budget.note}
                     </p>
                   </div>
                 )}
@@ -271,10 +274,10 @@ export default function Show({ budget, transactions }: Props) {
               <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg">
                 <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Related Transactions ({transactions.length})
+                    {t('related_transactions', 'Related Transactions')} ({transactions.length})
                   </h3>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    All expenses under this budget
+                    {t('all_expenses_budget', 'All expenses under this budget')}
                   </p>
                 </div>
 
@@ -283,7 +286,7 @@ export default function Show({ budget, transactions }: Props) {
                     <div className="p-12 text-center">
                       <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
                       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        এখনো কোন লেনদেন নেই
+                        {t('no_transactions_budget', 'No transactions yet')}
                       </p>
                     </div>
                   ) : (
@@ -323,7 +326,7 @@ export default function Show({ budget, transactions }: Props) {
               {/* Alert Settings */}
               <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  সতর্কতা সেটিংস
+                  {t('alert_settings', 'Alert Settings')}
                 </h3>
                 <div className="space-y-4">
                   <div className="flex items-start">
@@ -336,10 +339,10 @@ export default function Show({ budget, transactions }: Props) {
                     </div>
                     <div className="ml-3">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {budget.notify_on_exceed ? 'নোটিফিকেশন চালু' : 'নোটিফিকেশন বন্ধ'}
+                        {budget.notify_on_exceed ? t('notifications_on', 'Notifications On') : t('notifications_off', 'Notifications Off')}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        বাজেট অতিক্রম হলে সতর্কবার্তা
+                        {t('alert_on_exceed_desc', 'Alert when budget is exceeded')}
                       </p>
                     </div>
                   </div>
@@ -350,10 +353,10 @@ export default function Show({ budget, transactions }: Props) {
                     </div>
                     <div className="ml-3">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {budget.alert_percentage}% এ সতর্কতা
+                        {budget.alert_percentage}% {t('warning', 'Warning')}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        বাজেট এই শতাংশে পৌঁছালে সতর্ক করবে
+                        {t('alert_at_percent_desc', 'Will alert when budget reaches this percentage')}
                       </p>
                     </div>
                   </div>
@@ -367,10 +370,10 @@ export default function Show({ budget, transactions }: Props) {
                     </div>
                     <div className="ml-3">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {budget.is_active ? 'সক্রিয় বাজেট' : 'নিষ্ক্রিয় বাজেট'}
+                        {budget.is_active ? t('active_budget', 'Active Budget') : t('inactive_budget', 'Inactive Budget')}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {budget.is_active ? 'এই বাজেট বর্তমানে ট্র্যাক হচ্ছে' : 'এই বাজেট ট্র্যাক হচ্ছে না'}
+                        {budget.is_active ? t('budget_tracking_on', 'This budget is currently being tracked') : t('budget_tracking_off', 'This budget is not being tracked')}
                       </p>
                     </div>
                   </div>
@@ -379,22 +382,22 @@ export default function Show({ budget, transactions }: Props) {
 
               {/* Quick Stats */}
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 shadow-sm rounded-lg p-6 text-white">
-                <h3 className="text-lg font-semibold mb-4">Quick Statistics</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('quick_statistics', 'Quick Statistics')}</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm opacity-90">Daily Spending Rate</span>
+                    <span className="text-sm opacity-90">{t('daily_spending_rate', 'Daily Spending Rate')}</span>
                     <span className="font-semibold">
                       {formatCurrency(budget.spent_amount / Math.max(1, Math.ceil((new Date().getTime() - new Date(budget.start_date).getTime()) / (1000 * 60 * 60 * 24))))}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm opacity-90">Daily Budget Remaining</span>
+                    <span className="text-sm opacity-90">{t('daily_budget_remaining', 'Daily Budget Remaining')}</span>
                     <span className="font-semibold">
                       {daysRemaining > 0 ? formatCurrency(budget.remaining / daysRemaining) : '৳0'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm opacity-90">Total Transactions</span>
+                    <span className="text-sm opacity-90">{t('total_transactions', 'Total Transactions')}</span>
                     <span className="font-semibold">{transactions.length}</span>
                   </div>
                 </div>
