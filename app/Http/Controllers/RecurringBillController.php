@@ -6,6 +6,7 @@ use App\Models\RecurringBill;
 use App\Models\Category;
 use App\Models\Space;
 use App\Models\Account;
+use App\Models\Budget;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +21,7 @@ class RecurringBillController extends Controller
         $user = auth()->user();
         $spaceId = $request->query('space_id');
 
-        $query = RecurringBill::with(['category', 'space'])
+        $query = RecurringBill::with(['category', 'space', 'budget'])
             ->where('user_id', $user->id);
 
         if ($spaceId && $spaceId !== 'combined') {
@@ -28,23 +29,29 @@ class RecurringBillController extends Controller
         }
 
         $bills = $query->latest()->get()->map(function ($bill) use ($user) {
-            // Check if paid this month
             $alreadyPaid = Transaction::where('user_id', $user->id)
-                ->where('type', 'expense')
-                ->where('category_id', $bill->category_id)
+                ->where('recurring_bill_id', $bill->id)
+                ->whereYear('transaction_date', now()->year)
                 ->whereMonth('transaction_date', now()->month)
                 ->exists();
 
             return [
                 'id' => $bill->id,
                 'name' => $bill->name,
-                'amount' => (float)$bill->amount,
+                'amount' => (float) $bill->amount,
                 'due_day' => $bill->due_day,
                 'frequency' => $bill->frequency,
                 'status' => $bill->status,
                 'is_paid_this_month' => $alreadyPaid,
+                'budget_id' => $bill->budget_id,
                 'category' => $bill->category ? ['id' => $bill->category->id, 'name' => $bill->category->name, 'icon' => $bill->category->icon] : null,
-                'space' => $bill->space ? ['id' => $bill->space->id, 'name' => $bill->space->name] : null
+                'space' => $bill->space ? ['id' => $bill->space->id, 'name' => $bill->space->name] : null,
+                'budget' => $bill->budget ? [
+                    'id' => $bill->budget->id,
+                    'name' => $bill->budget->name,
+                    'amount' => (float) $bill->budget->amount,
+                    'spent_amount' => (float) $bill->budget->spent_amount,
+                ] : null,
             ];
         });
 
@@ -60,12 +67,20 @@ class RecurringBillController extends Controller
 
         $spaces = Space::where('user_id', $user->id)->get(['id', 'name', 'type']);
 
+        $budgets = Budget::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where('start_date', '<=', now()->toDateString())
+            ->where('end_date', '>=', now()->toDateString())
+            ->orderBy('name')
+            ->get(['id', 'name', 'amount', 'spent_amount', 'category_id', 'space_id']);
+
         return Inertia::render('Bills/Index', [
             'bills' => $bills,
             'categories' => $categories,
             'accounts' => $accounts,
             'spaces' => $spaces,
-            'selectedSpaceId' => $spaceId
+            'budgets' => $budgets,
+            'selectedSpaceId' => $spaceId,
         ]);
     }
 
@@ -76,19 +91,32 @@ class RecurringBillController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'due_day' => 'required|integer|min:1|max:31',
             'frequency' => 'required|in:monthly,custom',
-            'category_id' => 'required|exists:categories,id',
-            'space_id' => 'required|exists:spaces,id',
+            'budget_id' => 'required|exists:budgets,id',
+            'category_id' => 'nullable|exists:categories,id',
+            'space_id' => 'nullable|exists:spaces,id',
         ]);
+
+        $budget = $this->resolveOwnedBudget((int) $validated['budget_id']);
+
+        $categoryId = $budget->category_id ?? $validated['category_id'];
+        $spaceId = $budget->space_id ?? $validated['space_id'];
+
+        if (! $categoryId || ! $spaceId) {
+            return redirect()->back()->withErrors([
+                'budget_id' => 'নির্বাচিত বাজেটে ক্যাটাগরি ও স্পেস নির্ধারিত নেই। অন্য বাজেট বেছে নিন বা ক্যাটাগরি/স্পেস নির্বাচন করুন।',
+            ])->withInput();
+        }
 
         RecurringBill::create([
             'user_id' => auth()->id(),
-            'space_id' => $validated['space_id'],
-            'category_id' => $validated['category_id'],
+            'budget_id' => $budget->id,
+            'space_id' => $spaceId,
+            'category_id' => $categoryId,
             'name' => $validated['name'],
             'amount' => $validated['amount'],
             'due_day' => $validated['due_day'],
             'frequency' => $validated['frequency'],
-            'status' => 'active'
+            'status' => 'active',
         ]);
 
         return redirect()->back()->with('success', 'পুনরাবৃত্ত বিল সফলভাবে তৈরি হয়েছে।');
@@ -105,12 +133,33 @@ class RecurringBillController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'due_day' => 'required|integer|min:1|max:31',
             'frequency' => 'required|in:monthly,custom',
-            'category_id' => 'required|exists:categories,id',
-            'space_id' => 'required|exists:spaces,id',
+            'budget_id' => 'required|exists:budgets,id',
+            'category_id' => 'nullable|exists:categories,id',
+            'space_id' => 'nullable|exists:spaces,id',
             'status' => 'required|in:active,paused',
         ]);
 
-        $recurringBill->update($validated);
+        $budget = $this->resolveOwnedBudget((int) $validated['budget_id']);
+
+        $categoryId = $budget->category_id ?? $validated['category_id'];
+        $spaceId = $budget->space_id ?? $validated['space_id'];
+
+        if (! $categoryId || ! $spaceId) {
+            return redirect()->back()->withErrors([
+                'budget_id' => 'নির্বাচিত বাজেটে ক্যাটাগরি ও স্পেস নির্ধারিত নেই। অন্য বাজেট বেছে নিন বা ক্যাটাগরি/স্পেস নির্বাচন করুন।',
+            ])->withInput();
+        }
+
+        $recurringBill->update([
+            'name' => $validated['name'],
+            'amount' => $validated['amount'],
+            'due_day' => $validated['due_day'],
+            'frequency' => $validated['frequency'],
+            'status' => $validated['status'],
+            'budget_id' => $budget->id,
+            'space_id' => $spaceId,
+            'category_id' => $categoryId,
+        ]);
 
         return redirect()->back()->with('success', 'পুনরাবৃত্ত বিল সফলভাবে আপডেট হয়েছে।');
     }
@@ -139,27 +188,57 @@ class RecurringBillController extends Controller
             'account_id' => 'required|exists:accounts,id',
             'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date',
-            'note' => 'nullable|string|max:1000'
+            'note' => 'nullable|string|max:1000',
         ]);
 
-        $account = Account::find($validated['account_id']);
+        if (! $recurringBill->budget_id) {
+            return redirect()->back()->withErrors([
+                'budget' => 'এই বিলটি কোনো বাজেটের সাথে যুক্ত নেই। দয়া করে বিল সম্পাদনা করে একটি বাজেট নির্বাচন করুন।',
+            ]);
+        }
 
-        DB::transaction(function () use ($recurringBill, $validated, $account) {
+        $budget = Budget::where('id', $recurringBill->budget_id)
+            ->where('user_id', auth()->id())
+            ->where('start_date', '<=', $validated['date'])
+            ->where('end_date', '>=', $validated['date'])
+            ->first();
+
+        if (! $budget) {
+            return redirect()->back()->withErrors([
+                'date' => 'পরিশোধের তারিখে এই বিলের বাজেট সক্রিয় নেই। দয়া করে বাজেট তৈরি বা ক্লোন করুন।',
+            ]);
+        }
+
+        $account = Account::where('id', $validated['account_id'])
+            ->where('user_id', auth()->id())
+            ->firstOrFail();
+
+        DB::transaction(function () use ($recurringBill, $validated, $account, $budget) {
             Transaction::create([
                 'user_id' => auth()->id(),
                 'account_id' => $account->id,
-                'category_id' => $recurringBill->category_id,
-                'space_id' => $recurringBill->space_id,
+                'category_id' => $recurringBill->category_id ?? $budget->category_id,
+                'space_id' => $recurringBill->space_id ?? $budget->space_id,
+                'budget_id' => $budget->id,
+                'recurring_bill_id' => $recurringBill->id,
                 'type' => 'expense',
                 'amount' => $validated['amount'],
                 'description' => "Bill paid: {$recurringBill->name}",
                 'transaction_date' => $validated['date'],
-                'note' => $validated['note'] ?: "Paid via recurring reminder",
-                'is_fixed' => true, // Recurring bills are typically Fixed expenses
+                'note' => $validated['note'] ?: 'Paid via recurring reminder',
+                'is_fixed' => true,
                 'payment_method' => $account->type === 'cash' ? 'cash' : ($account->type === 'mobile_banking' ? 'mobile_banking' : 'bank'),
             ]);
         });
 
-        return redirect()->back()->with('success', 'বিল পরিশোধ রেকর্ড করা হয়েছে।');
+        return redirect()->back()->with('success', 'বিল পরিশোধ রেকর্ড করা হয়েছে এবং বাজেট থেকে কাটা হয়েছে।');
+    }
+
+    private function resolveOwnedBudget(int $budgetId): Budget
+    {
+        return Budget::where('id', $budgetId)
+            ->where('user_id', auth()->id())
+            ->where('is_active', true)
+            ->firstOrFail();
     }
 }

@@ -14,6 +14,7 @@ class RecurringBill extends Model
         'user_id',
         'space_id',
         'category_id',
+        'budget_id',
         'name',
         'amount',
         'due_day', // day of month 1-31
@@ -39,5 +40,10 @@ class RecurringBill extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function budget(): BelongsTo
+    {
+        return $this->belongsTo(Budget::class);
     }
 }

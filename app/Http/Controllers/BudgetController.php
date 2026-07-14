@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use Carbon\Carbon;
 
 class BudgetController extends Controller
 {
@@ -16,9 +17,22 @@ class BudgetController extends Controller
     {
         $user = auth()->user();
         $spaceId = $request->query('space_id');
+        $month = $request->query('month', now()->format('Y-m'));
+
+        try {
+            $monthDate = Carbon::createFromFormat('Y-m', $month);
+        } catch (\Exception $e) {
+            $monthDate = now();
+            $month = $monthDate->format('Y-m');
+        }
+
+        $monthStart = $monthDate->copy()->startOfMonth()->toDateString();
+        $monthEnd = $monthDate->copy()->endOfMonth()->toDateString();
 
         $query = Budget::with(['category', 'space'])
-            ->where('user_id', $user->id);
+            ->where('user_id', $user->id)
+            ->where('start_date', '<=', $monthEnd)
+            ->where('end_date', '>=', $monthStart);
 
         if ($spaceId && $spaceId !== 'combined') {
             $query->where('space_id', $spaceId);
@@ -27,9 +41,7 @@ class BudgetController extends Controller
         // Apply filters
         if ($request->has('status')) {
             if ($request->status === 'active') {
-                $query->where('is_active', true)
-                    ->where('start_date', '<=', now())
-                    ->where('end_date', '>=', now());
+                $query->where('is_active', true);
             } elseif ($request->status === 'exceeded') {
                 $query->whereRaw('spent_amount > amount');
             } elseif ($request->status === 'completed') {
@@ -37,12 +49,14 @@ class BudgetController extends Controller
             }
         }
 
-        $budgets = $query->latest()->get();
-        
-        // Recalculate spent amounts
-        foreach ($budgets as $b) {
-            $b->updateSpentAmount();
+        $budgets = $query->orderBy('name')->get();
+
+        // Recalculate spent amounts live from transactions
+        foreach ($budgets as $budget) {
+            $budget->updateSpentAmount();
         }
+
+        $budgets = $budgets->fresh()->load(['category', 'space']);
 
         $categories = Category::where('user_id', $user->id)
             ->where('is_active', true)
@@ -52,29 +66,26 @@ class BudgetController extends Controller
 
         $spaces = Space::where('user_id', $user->id)->get(['id', 'name', 'type']);
 
-        $summaryQuery = Budget::where('user_id', $user->id)
-            ->where('is_active', true)
-            ->where('start_date', '<=', now())
-            ->where('end_date', '>=', now());
-
-        if ($spaceId && $spaceId !== 'combined') {
-            $summaryQuery->where('space_id', $spaceId);
-        }
-        $activeBudgets = $summaryQuery->get();
+        $activeBudgets = $budgets->filter(function (Budget $budget) use ($monthStart, $monthEnd) {
+            return $budget->is_active
+                && $budget->start_date->toDateString() <= $monthEnd
+                && $budget->end_date->toDateString() >= $monthStart;
+        });
 
         $summary = [
-            'total_budget' => (float)$activeBudgets->sum('amount'),
-            'total_spent' => (float)$activeBudgets->sum('spent_amount'),
-            'total_remaining' => (float)$activeBudgets->sum('remaining'),
+            'total_budget' => (float) $activeBudgets->sum('amount'),
+            'total_spent' => (float) $activeBudgets->sum('spent_amount'),
+            'total_remaining' => (float) $activeBudgets->sum(fn (Budget $b) => $b->remaining),
             'exceeded_count' => $activeBudgets->filter->isExceeded()->count(),
         ];
 
         return Inertia::render('Budgets/Index', [
-            'budgets' => $budgets,
+            'budgets' => $budgets->values(),
             'categories' => $categories,
             'spaces' => $spaces,
             'summary' => $summary,
-            'filters' => $request->only(['status', 'space_id'])
+            'filters' => $request->only(['status', 'space_id']),
+            'selectedMonth' => $month,
         ]);
     }
 
@@ -142,6 +153,8 @@ class BudgetController extends Controller
         if ($budget->user_id !== auth()->id()) {
             abort(403);
         }
+
+        $budget->updateSpentAmount();
 
         $user = auth()->user();
         $categories = Category::where('user_id', $user->id)

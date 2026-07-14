@@ -17,6 +17,7 @@ export default function Index(props: any) {
         categories = [],
         accounts = [],
         spaces = [],
+        budgets = [],
     } = props;
 
     const { t } = useTranslation();
@@ -26,8 +27,10 @@ export default function Index(props: any) {
     const [amount, setAmount] = useState('');
     const [dueDay, setDueDay] = useState('5');
     const [frequency, setFrequency] = useState('monthly');
+    const [budgetId, setBudgetId] = useState(budgets[0]?.id?.toString() || '');
     const [categoryId, setCategoryId] = useState(categories[0]?.id?.toString() || '');
     const [spaceId, setSpaceId] = useState(spaces[0]?.id?.toString() || '');
+    const [budgetError, setBudgetError] = useState('');
 
     const [isPayOpen, setIsPayOpen] = useState(false);
     const [payBill, setPayBill] = useState<any>(null);
@@ -36,15 +39,41 @@ export default function Index(props: any) {
     const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
     const [payNote, setPayNote] = useState('');
 
+    const selectedBudget = budgets.find((b: any) => b.id.toString() === budgetId);
+    const isCategoryLocked = !!selectedBudget?.category_id;
+    const isSpaceLocked = !!selectedBudget?.space_id;
+
+    const handleBudgetChange = (nextBudgetId: string) => {
+        setBudgetId(nextBudgetId);
+        setBudgetError('');
+
+        const budget = budgets.find((b: any) => b.id.toString() === nextBudgetId);
+        if (budget) {
+            if (budget.space_id) {
+                setSpaceId(budget.space_id.toString());
+            }
+            if (budget.category_id) {
+                setCategoryId(budget.category_id.toString());
+            }
+        }
+    };
+
     const submitAddBill = (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!budgetId) {
+            setBudgetError(t('budget_required_error', 'Selecting a budget is required for expenses.'));
+            return;
+        }
+
         router.post('/recurring-bills', {
             name,
             amount: Number(amount),
             due_day: Number(dueDay),
             frequency,
-            category_id: categoryId,
-            space_id: spaceId
+            budget_id: budgetId,
+            category_id: categoryId || null,
+            space_id: spaceId || null,
         }, {
             onSuccess: () => {
                 setIsAddOpen(false);
@@ -57,6 +86,10 @@ export default function Index(props: any) {
         setName('');
         setAmount('');
         setDueDay('5');
+        setBudgetId(budgets[0]?.id?.toString() || '');
+        setCategoryId(categories[0]?.id?.toString() || '');
+        setSpaceId(spaces[0]?.id?.toString() || '');
+        setBudgetError('');
     };
 
     const openPayModal = (bill: any) => {
@@ -128,6 +161,11 @@ export default function Index(props: any) {
                                                     <span className="text-[9px] text-gray-500 dark:text-slate-500 font-bold block mt-0.5 uppercase tracking-wider">
                                                         {bill.space?.name || t('general_space', 'General Space')} • {t('due_on_day', 'Due on day')} {bill.due_day} {t('each_month', 'each month')}
                                                     </span>
+                                                    {bill.budget && (
+                                                        <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                                                            🎯 {bill.budget.name} (৳{number_format(bill.budget.spent_amount)} / ৳{number_format(bill.budget.amount)})
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -150,13 +188,18 @@ export default function Index(props: any) {
                                         </span>
 
                                         <div className="flex items-center space-x-2">
-                                            {!bill.is_paid_this_month && (
+                                            {!bill.is_paid_this_month && bill.budget && (
                                                 <button
                                                     onClick={() => openPayModal(bill)}
                                                     className="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all active:scale-95"
                                                 >
                                                     {t('pay_btn', 'Pay')}
                                                 </button>
+                                            )}
+                                            {!bill.is_paid_this_month && !bill.budget && (
+                                                <span className="text-[10px] text-rose-400 font-bold px-2">
+                                                    {t('bill_missing_budget', 'No budget linked')}
+                                                </span>
                                             )}
                                             
                                             <button
@@ -187,6 +230,39 @@ export default function Index(props: any) {
                         </div>
 
                         <form onSubmit={submitAddBill} className="space-y-4">
+                            <div className="bg-slate-50 dark:bg-slate-900/30 p-4 rounded-2xl border border-gray-200 dark:border-slate-800 space-y-2">
+                                <label className="block text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500">
+                                    {t('link_to_budget', 'Link to Budget')} <span className="text-red-500">*</span>
+                                </label>
+                                {budgets.length > 0 ? (
+                                    <>
+                                        <select
+                                            value={budgetId}
+                                            onChange={(e) => handleBudgetChange(e.target.value)}
+                                            required
+                                            className="block w-full px-4 py-3.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs"
+                                        >
+                                            <option value="">{t('select_budget', 'Select Budget')}</option>
+                                            {budgets.map((b: any) => (
+                                                <option key={b.id} value={b.id}>
+                                                    🎯 {b.name} (Limit: ৳{number_format(b.amount)})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {budgetError && <p className="text-red-500 text-[10px]">{budgetError}</p>}
+                                        {budgetId && (
+                                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                                ✓ {t('budget_auto_filled_hint', 'Category & Space auto-populated and locked.')}
+                                            </p>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-medium">
+                                        ⚠️ {t('no_active_budgets_warning', 'No active budgets found for this month. Please create or clone a budget first before recording expenses.')}
+                                    </div>
+                                )}
+                            </div>
+
                             <div>
                                 <label className="block text-[9px] uppercase font-bold text-gray-500 dark:text-slate-500 mb-1">{t('bill_name', 'Bill Name / Description')}</label>
                                 <input
@@ -229,7 +305,8 @@ export default function Index(props: any) {
                                     value={categoryId}
                                     onChange={(e) => setCategoryId(e.target.value)}
                                     required
-                                    className="block w-full px-4 py-3.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs"
+                                    disabled={isCategoryLocked}
+                                    className="block w-full px-4 py-3.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs disabled:opacity-60"
                                 >
                                     {categories.map((c: any) => (
                                         <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
@@ -243,7 +320,8 @@ export default function Index(props: any) {
                                     value={spaceId}
                                     onChange={(e) => setSpaceId(e.target.value)}
                                     required
-                                    className="block w-full px-4 py-3.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs"
+                                    disabled={isSpaceLocked}
+                                    className="block w-full px-4 py-3.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-2xl text-xs disabled:opacity-60"
                                 >
                                     {spaces.map((s: any) => (
                                         <option key={s.id} value={s.id}>{s.name}</option>
@@ -253,7 +331,8 @@ export default function Index(props: any) {
 
                             <button
                                 type="submit"
-                                className="w-full bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-2xl text-xs font-bold text-white shadow-lg transition-all"
+                                disabled={budgets.length === 0}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 py-3.5 rounded-2xl text-xs font-bold text-white shadow-lg transition-all"
                             >
                                 {t('save_bill', 'Save Bill')}
                             </button>
@@ -262,7 +341,7 @@ export default function Index(props: any) {
                 </>
             )}
 
-            {isPayOpen && (
+            {isPayOpen && payBill && (
                 <>
                     <div className="fixed inset-0 z-35 bg-black/60 backdrop-blur-xs" onClick={() => setIsPayOpen(false)}></div>
                     <div className="absolute bottom-0 inset-x-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 rounded-t-[32px] p-6 z-40 space-y-5 animate-slide-up">
@@ -272,6 +351,17 @@ export default function Index(props: any) {
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
+
+                        {payBill.budget && (
+                            <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 rounded-2xl p-3 text-xs">
+                                <p className="font-bold text-emerald-700 dark:text-emerald-300">
+                                    🎯 {t('deduct_from_budget', 'Will deduct from budget')}: {payBill.budget.name}
+                                </p>
+                                <p className="text-emerald-600 dark:text-emerald-400 mt-1">
+                                    {t('budget_remaining', 'Remaining')}: ৳{number_format(Math.max(0, payBill.budget.amount - payBill.budget.spent_amount))}
+                                </p>
+                            </div>
+                        )}
 
                         <form onSubmit={submitPayBill} className="space-y-4">
                             <div>

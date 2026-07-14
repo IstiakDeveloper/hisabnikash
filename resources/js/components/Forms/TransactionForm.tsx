@@ -106,7 +106,7 @@ export default function TransactionForm({
       setBudgetError(t('budget_required_error', 'Selecting a budget is required for expenses.'));
       return;
     }
-    onSubmit(data);
+    onSubmit({ ...data, budget_id: selectedBudgetId || null });
   };
 
   const filteredCategories = categories.filter(category => category.type === data.type);

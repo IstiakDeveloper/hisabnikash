@@ -179,7 +179,8 @@ class DashboardController extends Controller
             // Has it been paid? Check if a transaction exists this month with similar category or description
             $alreadyPaid = (clone $txQuery)
                 ->where('type', 'expense')
-                ->where('category_id', $bill->category_id)
+                ->where('recurring_bill_id', $bill->id)
+                ->whereYear('transaction_date', Carbon::now()->year)
                 ->whereMonth('transaction_date', Carbon::now()->month)
                 ->exists();
 

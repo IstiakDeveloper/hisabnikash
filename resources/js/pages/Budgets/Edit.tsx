@@ -1,8 +1,9 @@
-import React, { FormEvent } from 'react';
+import React, { useState, FormEvent } from 'react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from '@/hooks/useTranslation';
+import { number_format } from '@/layouts/AuthenticatedLayout';
 
 interface Category {
   id: number;
@@ -15,7 +16,11 @@ interface Budget {
   id: number;
   name: string;
   amount: number;
+  spent_amount: number;
+  remaining: number;
+  spent_percentage: number;
   category_id: number | null;
+  space_id: number | null;
   period: string;
   start_date: string;
   end_date: string;
@@ -78,7 +83,7 @@ export default function Edit({ budget, categories, spaces }: Props) {
   };
 
   return (
-    <AuthenticatedLayout showFAB={false}>
+    <AuthenticatedLayout>
       <Head title={t('edit_budget', 'Edit Budget Limit')} />
 
       <div className="py-6 lg:py-12">
@@ -108,6 +113,21 @@ export default function Edit({ budget, categories, spaces }: Props) {
                 <TrashIcon className="h-4 w-4 mr-1" />
                 {t('delete', 'Delete')}
               </button>
+            </div>
+          </div>
+
+          <div className="mb-6 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 rounded-xl p-4 grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('allocated_limit', 'Allocated Limit')}</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">৳{number_format(budget.amount)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('total_spent_label', 'Total Spent')}</p>
+              <p className="text-lg font-bold text-rose-500">৳{number_format(budget.spent_amount)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('remaining_balance', 'Remaining Balance')}</p>
+              <p className="text-lg font-bold text-emerald-600">৳{number_format(budget.remaining)}</p>
             </div>
           </div>
 

@@ -15,6 +15,8 @@ class Transaction extends Model
         'account_id',
         'category_id',
         'space_id',
+        'budget_id',
+        'recurring_bill_id',
         'type',
         'amount',
         'description',
@@ -52,6 +54,16 @@ class Transaction extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function budget(): BelongsTo
+    {
+        return $this->belongsTo(Budget::class);
+    }
+
+    public function recurringBill(): BelongsTo
+    {
+        return $this->belongsTo(RecurringBill::class);
     }
 
     // Auto update account balance and budgets after creating transaction
@@ -105,6 +117,21 @@ class Transaction extends Model
      */
     protected static function updateRelatedBudgets(Transaction $transaction): void
     {
+        $budgetIds = collect([
+            $transaction->budget_id,
+            $transaction->getOriginal('budget_id'),
+        ])->filter()->unique();
+
+        if ($budgetIds->isNotEmpty()) {
+            Budget::where('user_id', $transaction->user_id)
+                ->whereIn('id', $budgetIds)
+                ->get()
+                ->each
+                ->updateSpentAmount();
+
+            return;
+        }
+
         $budgets = Budget::where('user_id', $transaction->user_id)
             ->where('is_active', true)
             ->where('start_date', '<=', $transaction->transaction_date)

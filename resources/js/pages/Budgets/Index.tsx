@@ -12,7 +12,8 @@ import {
     Wallet,
     Calendar,
     ArrowUpRight,
-    Copy
+    Copy,
+    Pencil
 } from 'lucide-react';
 
 export default function Index(props: any) {
@@ -21,7 +22,8 @@ export default function Index(props: any) {
         categories = [],
         spaces = [],
         summary = {},
-        filters = {}
+        filters = {},
+        selectedMonth: initialMonth = new Date().toISOString().substring(0, 7),
     } = props;
 
     const { t } = useTranslation();
@@ -32,7 +34,7 @@ export default function Index(props: any) {
     const [spaceId, setSpaceId] = useState(spaces[0]?.id?.toString() || '');
     const [amount, setAmount] = useState('');
     const [period, setPeriod] = useState('monthly');
-    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
+    const [selectedMonth, setSelectedMonth] = useState(initialMonth);
     const [startDate, setStartDate] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`);
     const [endDate, setEndDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]);
     const [note, setNote] = useState('');
@@ -75,6 +77,11 @@ export default function Index(props: any) {
         setCategoryId('');
         setAmount('');
         setNote('');
+    };
+
+    const handleMonthFilterChange = (monthStr: string) => {
+        setSelectedMonth(monthStr);
+        router.get('/budgets', { month: monthStr, ...filters }, { preserveState: true });
     };
 
     const handleCloneBudget = () => {
@@ -120,9 +127,17 @@ export default function Index(props: any) {
 
                 {/* 2. Budget summary stats */}
                 <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-3xl p-5 space-y-4">
-                    <div className="flex items-center space-x-2 text-xs font-bold text-gray-500 dark:text-slate-400">
-                        <Wallet className="w-4 h-4 text-emerald-500" />
-                        <span>{t('monthly_budget_summary', 'Current Month Overall Budget Summary')}</span>
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center space-x-2 text-xs font-bold text-gray-500 dark:text-slate-400">
+                            <Wallet className="w-4 h-4 text-emerald-500" />
+                            <span>{t('monthly_budget_summary', 'Current Month Overall Budget Summary')}</span>
+                        </div>
+                        <input
+                            type="month"
+                            value={selectedMonth}
+                            onChange={(e) => handleMonthFilterChange(e.target.value)}
+                            className="px-3 py-1.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl text-[10px] font-bold"
+                        />
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
@@ -149,6 +164,7 @@ export default function Index(props: any) {
                         </div>
                     ) : (
                         budgets.map((b: any) => {
+                            const spentPercentage = Number(b.spent_percentage) || 0;
                             const barColor = b.is_exceeded 
                                 ? 'bg-rose-500' 
                                 : (b.should_alert ? 'bg-amber-500' : 'bg-emerald-500');
@@ -174,9 +190,17 @@ export default function Index(props: any) {
                                             </div>
                                         </div>
                                         
-                                        <div className="text-right space-y-0.5">
-                                            <span className="text-[9px] text-gray-500 dark:text-slate-500 uppercase font-bold block">{t('allocated_limit', 'Allocated Limit')}</span>
-                                            <span className="text-sm font-black text-gray-900 dark:text-slate-100 block">৳{number_format(b.amount)}</span>
+                                        <div className="flex items-start space-x-2">
+                                            <div className="text-right space-y-0.5">
+                                                <span className="text-[9px] text-gray-500 dark:text-slate-500 uppercase font-bold block">{t('allocated_limit', 'Allocated Limit')}</span>
+                                                <span className="text-sm font-black text-gray-900 dark:text-slate-100 block">৳{number_format(b.amount)}</span>
+                                            </div>
+                                            <Link
+                                                href={`/budgets/${b.id}/edit`}
+                                                className="text-gray-500 dark:text-slate-500 hover:text-emerald-500 p-1.5 rounded transition-all"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </Link>
                                         </div>
                                     </div>
 
@@ -185,12 +209,12 @@ export default function Index(props: any) {
                                         <div className="w-full h-3 bg-gray-50 dark:bg-slate-950 rounded-full overflow-hidden">
                                             <div 
                                                 className={`h-full rounded-full transition-all ${barColor}`}
-                                                style={{ width: `${Math.min(100, b.spent_percentage)}%` }}
+                                                style={{ width: `${Math.min(100, spentPercentage)}%` }}
                                             ></div>
                                         </div>
                                         
                                         <div className="flex justify-between text-[10px] font-bold text-gray-500 dark:text-slate-400">
-                                            <span>{t('spent_colon', 'Spent')}: ৳{number_format(b.spent_amount)} ({b.spent_percentage}%)</span>
+                                            <span>{t('spent_colon', 'Spent')}: ৳{number_format(b.spent_amount)} ({spentPercentage.toFixed(1)}%)</span>
                                             <span>{t('remaining_colon', 'Remaining')}: ৳{number_format(b.remaining)}</span>
                                         </div>
                                     </div>

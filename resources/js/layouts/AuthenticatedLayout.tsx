@@ -304,6 +304,7 @@ export default function AuthenticatedLayout({ children }: Props) {
                 account_id: accountId,
                 category_id: categoryId,
                 space_id: spaceId,
+                budget_id: fabTab === 'expense' ? selectedBudgetId : null,
                 type: fabTab,
                 amount: Number(amount),
                 description: description || (fabTab === 'expense' ? 'Quick Expense' : 'Quick Income'),

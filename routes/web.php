@@ -26,6 +26,7 @@ Route::middleware(['auth', 'verified', 'pin.mutation'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Accounts
+    Route::post('accounts/transfer', [AccountController::class, 'transfer'])->name('accounts.transfer');
     Route::resource('accounts', AccountController::class);
 
     // Categories

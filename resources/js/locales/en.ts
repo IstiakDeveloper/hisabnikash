@@ -659,6 +659,11 @@ export const en = {
     "processing": "Processing...",
     "complete_transfer": "Complete Transfer",
     "transfer_to_cash": "Transfer money to cash account",
+    "fee_goes_to_expense": "Fee will be recorded as an expense automatically.",
+    "budget_required_for_fee": "Please select a budget for the transfer fee.",
+    "category_required_for_fee": "Please select a category for the transfer fee.",
+    "total_debit": "Total Debit",
+    "optional": "Optional",
     "no_cash_account": "No cash account found. Please create a cash account first.",
     "create_cash_account": "Create Cash Account",
     "cash_account_balance": "Cash Account Balance",
@@ -807,6 +812,10 @@ export const en = {
     "locked_by_budget": "Locked by budget selection",
     "budget_required_error": "Selecting a budget is required for expenses.",
     "no_active_budgets_warning": "No active budgets found for this month. Please create or clone a budget first before recording expenses.",
+    "budget_auto_filled_hint": "Category & Space auto-populated and locked.",
+    "bill_missing_budget": "No budget linked",
+    "deduct_from_budget": "Will deduct from budget",
+    "budget_remaining": "Remaining",
     "spaces": "Spaces / Profiles",
 };
 

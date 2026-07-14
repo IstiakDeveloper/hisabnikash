@@ -36,6 +36,13 @@ class Budget extends Model
         'alert_percentage' => 'integer',
     ];
 
+    protected $appends = [
+        'remaining',
+        'spent_percentage',
+        'is_exceeded',
+        'should_alert',
+    ];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -78,6 +85,11 @@ class Budget extends Model
         return $this->spent_amount > $this->amount;
     }
 
+    public function getIsExceededAttribute(): bool
+    {
+        return $this->isExceeded();
+    }
+
     /**
      * Check if budget has reached alert threshold
      */
@@ -89,6 +101,11 @@ class Budget extends Model
 
         $threshold = ($this->amount * $this->alert_percentage) / 100;
         return $this->spent_amount >= $threshold;
+    }
+
+    public function getShouldAlertAttribute(): bool
+    {
+        return $this->shouldAlert();
     }
 
     /**
@@ -113,14 +130,22 @@ class Budget extends Model
             ->where('type', 'expense')
             ->whereBetween('transaction_date', [$this->start_date, $this->end_date]);
 
-        // If budget is category-specific, filter by category
         if ($this->category_id) {
-            $query->where('category_id', $this->category_id);
-        }
+            // Category budgets: explicit link OR legacy category+space match
+            $query->where(function ($q) {
+                $q->where('budget_id', $this->id)
+                    ->orWhere(function ($q2) {
+                        $q2->whereNull('budget_id')
+                            ->where('category_id', $this->category_id);
 
-        // Filter by space if specified
-        if ($this->space_id) {
-            $query->where('space_id', $this->space_id);
+                        if ($this->space_id) {
+                            $q2->where('space_id', $this->space_id);
+                        }
+                    });
+            });
+        } else {
+            // Envelope budgets (no category): only explicitly linked transactions
+            $query->where('budget_id', $this->id);
         }
 
         $this->spent_amount = $query->sum('amount');

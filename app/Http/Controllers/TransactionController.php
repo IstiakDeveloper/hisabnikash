@@ -83,6 +83,7 @@ class TransactionController extends Controller
             'account_id' => 'required|exists:accounts,id',
             'category_id' => 'required|exists:categories,id',
             'space_id' => 'required|exists:spaces,id',
+            'budget_id' => 'nullable|exists:budgets,id',
             'type' => 'required|in:income,expense',
             'amount' => 'required|numeric|min:0.01',
             'description' => 'nullable|string|max:255',
@@ -113,6 +114,30 @@ class TransactionController extends Controller
             ])->withInput();
         }
 
+        $budgetId = null;
+        if ($validated['type'] === 'expense') {
+            if (empty($validated['budget_id'])) {
+                return redirect()->back()->withErrors([
+                    'budget_id' => 'খরচের জন্য একটি বাজেট নির্বাচন করা বাধ্যতামূলক।',
+                ])->withInput();
+            }
+
+            $budget = Budget::where('id', $validated['budget_id'])
+                ->where('user_id', auth()->id())
+                ->where('start_date', '<=', $date->toDateString())
+                ->where('end_date', '>=', $date->toDateString())
+                ->firstOrFail();
+
+            $budgetId = $budget->id;
+
+            if ($budget->category_id) {
+                $validated['category_id'] = $budget->category_id;
+            }
+            if ($budget->space_id) {
+                $validated['space_id'] = $budget->space_id;
+            }
+        }
+
         $receiptPath = null;
         if ($request->hasFile('receipt')) {
             $receiptPath = $request->file('receipt')->store('receipts', 'public');
@@ -123,6 +148,7 @@ class TransactionController extends Controller
             'account_id' => $validated['account_id'],
             'category_id' => $validated['category_id'],
             'space_id' => $validated['space_id'],
+            'budget_id' => $budgetId,
             'type' => $validated['type'],
             'amount' => $validated['amount'],
             'description' => $validated['description'] ?? '',
@@ -215,6 +241,7 @@ class TransactionController extends Controller
             'account_id' => 'required|exists:accounts,id',
             'category_id' => 'required|exists:categories,id',
             'space_id' => 'required|exists:spaces,id',
+            'budget_id' => 'nullable|exists:budgets,id',
             'type' => 'required|in:income,expense',
             'amount' => 'required|numeric|min:0.01',
             'description' => 'nullable|string|max:255',
@@ -245,6 +272,30 @@ class TransactionController extends Controller
             ])->withInput();
         }
 
+        $budgetId = null;
+        if ($validated['type'] === 'expense') {
+            if (empty($validated['budget_id'])) {
+                return redirect()->back()->withErrors([
+                    'budget_id' => 'খরচের জন্য একটি বাজেট নির্বাচন করা বাধ্যতামূলক।',
+                ])->withInput();
+            }
+
+            $budget = Budget::where('id', $validated['budget_id'])
+                ->where('user_id', auth()->id())
+                ->where('start_date', '<=', $date->toDateString())
+                ->where('end_date', '>=', $date->toDateString())
+                ->firstOrFail();
+
+            $budgetId = $budget->id;
+
+            if ($budget->category_id) {
+                $validated['category_id'] = $budget->category_id;
+            }
+            if ($budget->space_id) {
+                $validated['space_id'] = $budget->space_id;
+            }
+        }
+
         $receiptPath = $transaction->receipt_image;
         if ($request->hasFile('receipt')) {
             if ($transaction->receipt_image) {
@@ -257,6 +308,7 @@ class TransactionController extends Controller
             'account_id' => $validated['account_id'],
             'category_id' => $validated['category_id'],
             'space_id' => $validated['space_id'],
+            'budget_id' => $budgetId,
             'type' => $validated['type'],
             'amount' => $validated['amount'],
             'description' => $validated['description'] ?? '',
