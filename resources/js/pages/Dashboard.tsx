@@ -9,7 +9,8 @@ import {
     Clock, 
     PiggyBank, 
     ChevronRight,
-    Bell
+    Bell,
+    Wallet
 } from 'lucide-react';
 
 const accountTypeKeys: Record<string, string> = {
@@ -140,7 +141,14 @@ export default function Dashboard(props: any) {
                         <div className="text-4xl font-extrabold tracking-tight">
                             ৳{number_format(monthlySummary.balance)}
                         </div>
-                        <div className="flex justify-between items-center pt-4 text-xs border-t border-white/10 mt-4">
+                        <div className="grid grid-cols-3 gap-2 pt-4 text-xs border-t border-white/10 mt-4">
+                            <div className="flex items-center space-x-1.5">
+                                <Wallet className="w-4 h-4 opacity-80" />
+                                <div>
+                                    <span className="block opacity-75 text-[9px] uppercase">{t('opening_balance', 'Opening Balance')}</span>
+                                    <span className="font-bold">৳{number_format(monthlySummary.opening || 0)}</span>
+                                </div>
+                            </div>
                             <div className="flex items-center space-x-1.5">
                                 <TrendingUp className="w-4 h-4 opacity-80" />
                                 <div>
@@ -148,8 +156,8 @@ export default function Dashboard(props: any) {
                                     <span className="font-bold">৳{number_format(monthlySummary.income)}</span>
                                 </div>
                             </div>
-                            <div className="flex items-center space-x-1.5 text-right">
-                                <TrendingDown className="w-4 h-4 opacity-80" />
+                            <div className="flex items-center space-x-1.5 text-right justify-end">
+                                <TrendingDown className="w-4 h-4 opacity-80 text-rose-200" />
                                 <div>
                                     <span className="block opacity-75 text-[9px] uppercase">{t('expense_outflow', 'Outflow (Expense)')}</span>
                                     <span className="font-bold text-rose-200">৳{number_format(monthlySummary.expense)}</span>

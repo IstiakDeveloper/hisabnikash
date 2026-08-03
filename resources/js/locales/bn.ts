@@ -101,6 +101,7 @@ export const bn = {
     "notifications": "নতুন নোটিফিকেশন",
     "alerts": "সতর্কতা",
     "current_month_balance": "বর্তমান মাসের ব্যালেন্স (Available)",
+    "opening_balance": "ওপেনিং ব্যালেন্স (পূর্বের জের)",
     "income_inflow": "আয় (Inflow)",
     "expense_outflow": "ব্যয় (Outflow)",
     "my_accounts": "আমার অ্যাকাউন্টসমূহ",

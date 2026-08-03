@@ -49,6 +49,37 @@ class AccountController extends Controller
         ]);
     }
 
+    public function create(): Response
+    {
+        return Inertia::render('Accounts/Create');
+    }
+
+    public function show(Account $account): Response
+    {
+        if ($account->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $account->load(['transactions' => function ($query) {
+            $query->with('category')->orderBy('transaction_date', 'desc');
+        }]);
+
+        return Inertia::render('Accounts/Show', [
+            'account' => $account,
+        ]);
+    }
+
+    public function edit(Account $account): Response
+    {
+        if ($account->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        return Inertia::render('Accounts/Edit', [
+            'account' => $account,
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -65,7 +96,7 @@ class AccountController extends Controller
             'is_active' => true
         ]);
 
-        return redirect()->back()->with('success', "অ্যাকাউন্ট সফলভাবে যুক্ত হয়েছে।");
+        return redirect()->route('accounts.index')->with('success', "অ্যাকাউন্ট সফলভাবে যুক্ত হয়েছে।");
     }
 
     public function update(Request $request, Account $account): RedirectResponse
@@ -85,7 +116,7 @@ class AccountController extends Controller
 
         $account->update($validated);
 
-        return redirect()->back()->with('success', "অ্যাকাউন্ট সফলভাবে আপডেট হয়েছে।");
+        return redirect()->route('accounts.index')->with('success', "অ্যাকাউন্ট সফলভাবে আপডেট হয়েছে।");
     }
 
     public function destroy(Account $account): RedirectResponse

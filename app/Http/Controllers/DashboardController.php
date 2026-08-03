@@ -216,8 +216,12 @@ class DashboardController extends Controller
             ];
         }
 
-        // 10. Budgets Tracker
-        $budgetQuery = Budget::with('category')->where('user_id', $user->id)->where('is_active', true);
+        // 10. Budgets Tracker (Current month active budgets)
+        $budgetQuery = Budget::with('category')
+            ->where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where('start_date', '<=', Carbon::now()->toDateString())
+            ->where('end_date', '>=', Carbon::now()->toDateString());
         if ($activeSpace) {
             $budgetQuery->where('space_id', $activeSpace->id);
         }
@@ -314,9 +318,10 @@ class DashboardController extends Controller
                 'debtFreeDate' => $debtFreeDate,
             ],
             'monthlySummary' => [
+                'opening' => (float)($totalBalance - ($monthlyIncome - $monthlyExpense)),
                 'income' => (float)$monthlyIncome,
                 'expense' => (float)$monthlyExpense,
-                'balance' => (float)($monthlyIncome - $monthlyExpense),
+                'balance' => (float)$totalBalance,
                 'fixed' => (float)$fixedExpenses,
                 'variable' => (float)$variableExpenses,
             ],

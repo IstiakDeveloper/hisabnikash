@@ -101,6 +101,7 @@ export const en = {
     "notifications": "New Notifications",
     "alerts": "Alerts",
     "current_month_balance": "Current Month Balance (Available)",
+    "opening_balance": "Opening Balance",
     "income_inflow": "Inflow (Income)",
     "expense_outflow": "Outflow (Expense)",
     "my_accounts": "My Accounts",
