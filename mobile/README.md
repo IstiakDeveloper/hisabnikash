@@ -15,7 +15,8 @@ See [implementation details and remaining release work](docs/IMPLEMENTATION_2026
 
 For iOS `.ipa` generation from Windows, see [the GitHub/macOS build guide](docs/IOS_IPA_BUILD.md).
 The manual workflow supports an unsigned archive or a signed Ad Hoc IPA using
-repository signing secrets. It has not yet run on a macOS runner.
+repository signing secrets. The [unsigned ARM64 IPA build passed on macOS](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/42885663778)
+using Xcode 16.4; the downloaded IPA and checksums are under `artifacts/ios/run-42885663778/`.
 
 The project currently builds against the machine's Flutter **3.24.4 / Dart 3.5.4**.
 Dependencies are locked in `pubspec.lock`. Android uses Java 17, compile SDK 35,
@@ -183,8 +184,8 @@ Verification in this workspace (10 November 2026):
 | Laravel mobile sync API tests | 9 passed, 34 assertions |
 | Android debug APK | Current source, universal debug APK built |
 | Actual Android device | Not verified; the temporary emulator did not finish booting |
-| iOS compilation/device | Not run on this Windows host |
-| Hosted CI and production sync deployment | Not run/deployed |
+| iOS compilation/device | ARM64 release and simulator build passed on GitHub macOS; physical device unverified |
+| Hosted CI and production sync deployment | Android/iOS/API jobs passed; production sync not deployed |
 
 The latest build is `build/app/outputs/flutter-apk/app-debug.apk`.
 Source and APK SHA-256 hashes are in `artifacts/android-debug-manifest.json`;

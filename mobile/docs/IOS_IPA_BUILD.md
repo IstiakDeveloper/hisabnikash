@@ -1,8 +1,17 @@
 # Build an iOS IPA from Windows using GitHub Actions
 
 The workflow is `.github/workflows/ios-ipa.yml`. It builds on a macOS runner;
-Windows does not run Xcode. The workflow has been prepared locally but has not
-been executed on GitHub. No IPA is present until a macOS build succeeds.
+Windows does not run Xcode. The first unsigned ARM64 release build succeeded on
+GitHub with Flutter 3.24.4 and Xcode 16.4 (source commit `8c46cbb`).
+[Successful IPA build](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/42885663778).
+The companion Android/API/iOS simulator quality workflow also passed.
+
+The downloaded file is `artifacts/ios/run-42885663778/HisabNikash-unsigned.ipa`
+(11,260,870 bytes). Its SHA-256 is
+`37cd1c2343a19fa8e04f0bca685dcd03dc5117601efeab63e87e007945ab4820`.
+Local verification checked ZIP integrity, the ARM64 executable, Flutter/App
+frameworks, bundle ID and checksum. This does not establish physical-device runtime
+behavior or App Store readiness; the app has no application signature.
 
 ## Unsigned file, without Apple signing credentials
 
@@ -11,6 +20,9 @@ been executed on GitHub. No IPA is present until a macOS build succeeds.
 2. Open **Actions → Build iOS IPA → Run workflow**.
 3. Select `unsigned`, then run the workflow.
 4. Download the `HisabNikash-ios-unsigned-<run number>` artifact after success.
+
+Pushing the isolated `codex/ios-ipa-build` branch also starts an unsigned build
+automatically, so it can be tested before merging the workflow into `main`.
 
 It contains `HisabNikash-unsigned.ipa`, checksums and source commit information.
 This file is explicitly unsigned. It cannot install directly on an iPhone; it
