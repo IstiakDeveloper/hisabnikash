@@ -1,0 +1,88 @@
+# Build an iOS IPA from Windows using GitHub Actions
+
+The workflow is `.github/workflows/ios-ipa.yml`. It builds on a macOS runner;
+Windows does not run Xcode. The workflow has been prepared locally but has not
+been executed on GitHub. No IPA is present until a macOS build succeeds.
+
+## Unsigned file, without Apple signing credentials
+
+1. Push the project and workflow to your GitHub repository. The workflow must be
+   on the default branch before it appears under Actions.
+2. Open **Actions → Build iOS IPA → Run workflow**.
+3. Select `unsigned`, then run the workflow.
+4. Download the `HisabNikash-ios-unsigned-<run number>` artifact after success.
+
+It contains `HisabNikash-unsigned.ipa`, checksums and source commit information.
+This file is explicitly unsigned. It cannot install directly on an iPhone; it
+still needs a valid Apple signing identity and provisioning profile. It is not a
+TestFlight/App Store submission.
+
+## Signed IPA for registered test iPhones
+
+This mode uses an Apple Developer Program Ad Hoc distribution profile. Register
+each test iPhone's UDID and include it in that profile. Register this exact App ID:
+
+`com.hisabnikash.hisabnikashMobile`
+
+Export the matching **Apple Distribution** certificate and its private key as a
+password-protected `.p12` using Keychain Access on a Mac. Download the matching
+Ad Hoc `.mobileprovision` profile from Apple Developer Certificates, Identifiers
+& Profiles. If you already have these two files, your own Mac is not needed to
+run the GitHub build.
+
+Under **GitHub repository → Settings → Secrets and variables → Actions**, add:
+
+| Secret | Value |
+| --- | --- |
+| `IOS_CERTIFICATE_P12_BASE64` | Base64 of the complete `.p12` file |
+| `IOS_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12` |
+| `IOS_PROFILE_BASE64` | Base64 of the complete `.mobileprovision` file |
+
+On Windows, copy each encoded file to the clipboard without printing it:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\path\distribution.p12')) | Set-Clipboard
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\path\HisabNikash.mobileprovision')) | Set-Clipboard
+```
+
+Paste each value into its corresponding GitHub secret separately. Do not commit
+these files, paste their contents in chat, or put Apple ID passwords in source.
+The workflow extracts the Team ID and profile UUID automatically and checks the
+profile's expiry, bundle ID and Ad Hoc device registration before building.
+
+Run **Build iOS IPA** with `signed-ad-hoc`. Download the signed IPA artifact on
+success. Install using Apple Configurator/Xcode or your existing Ad Hoc delivery
+service, on an iPhone included in the profile. Merely copying the file to Files
+on an iPhone does not install it. This workflow does not publish to any service.
+
+The runner imports signing material into a temporary keychain and removes it
+after the build. Build artifacts expire after seven days. The source revision
+and IPA SHA-256 checksums are included in the artifact.
+
+## Build directly on your Mac
+
+```sh
+cd mobile
+flutter pub get
+open ios/Runner.xcworkspace
+```
+
+In Xcode select **Runner → Signing & Capabilities**, select your Apple team and
+configure a matching bundle ID/profile. Build/archive and export an Ad Hoc IPA.
+After the first export, reuse Xcode's generated export-options plist:
+
+```sh
+flutter build ipa --release --export-options-plist=/path/to/ExportOptions.plist
+```
+
+The output is under `mobile/build/ios/ipa/`. The installed local project uses
+Flutter 3.24.4; the CI workflow deliberately uses the same version. Compatibility
+with the runner's Xcode and actual iPhones must be established by running it.
+App Store/TestFlight delivery needs a separate validation of current SDK/store
+requirements and distribution signing; Ad Hoc success does not establish that.
+
+## References
+
+- [Flutter: build and release an iOS app](https://docs.flutter.dev/deployment/ios)
+- [Apple: export an iOS app](https://help.apple.com/xcode/mac/current/en.lproj/dev23ea8b877.html)
+- [GitHub: supported macOS runner images](https://github.com/actions/runner-images)

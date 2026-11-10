@@ -13,6 +13,10 @@ See [implementation details and remaining release work](docs/IMPLEMENTATION_2026
 
 ## Run
 
+For iOS `.ipa` generation from Windows, see [the GitHub/macOS build guide](docs/IOS_IPA_BUILD.md).
+The manual workflow supports an unsigned archive or a signed Ad Hoc IPA using
+repository signing secrets. It has not yet run on a macOS runner.
+
 The project currently builds against the machine's Flutter **3.24.4 / Dart 3.5.4**.
 Dependencies are locked in `pubspec.lock`. Android uses Java 17, compile SDK 35,
 and minimum SDK 23. iOS targets 13 or newer and requires macOS/Xcode/CocoaPods.

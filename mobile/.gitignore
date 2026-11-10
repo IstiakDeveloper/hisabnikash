@@ -32,6 +32,9 @@ web/drift_worker.js.map
 android/key.properties
 *.jks
 *.keystore
+*.p12
+*.mobileprovision
+ios/ExportOptions.generated.plist
 .flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
