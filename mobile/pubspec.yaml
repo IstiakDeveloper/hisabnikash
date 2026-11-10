@@ -1,0 +1,44 @@
+﻿name: hisabnikash_mobile
+description: Private offline-first personal and small-business money management.
+publish_to: none
+version: 0.1.0+1
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  drift: ^2.22.1
+  sqlite3: ^2.7.3
+  sqlite3_flutter_libs: ^0.5.28
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  uuid: ^4.5.1
+  intl: ^0.19.0
+  dio: ^5.7.0
+  flutter_secure_storage: ^9.2.4
+  cryptography: ^2.7.0
+  file_picker: ^8.1.7
+  share_plus: ^10.1.4
+  local_auth: ^2.3.0
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+  pdf: ^3.11.1
+  image: ^4.5.4
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/
+  fonts:
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+    - family: NotoSansBengali
+      fonts:
+        - asset: assets/fonts/NotoSansBengali-Regular.ttf
