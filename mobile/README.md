@@ -78,7 +78,7 @@ is temporary; use the URL in your usual Chrome profile for longer-lived test dat
 
 Regression coverage includes a hand-calculated mixed ledger, future dates,
 cross-space visibility, selector search/create, space/account scoping, and
-320px/430px/1280px layouts. Current full Flutter suite: **53 tests passed**.
+320px/430px/1280px layouts. Current full Flutter suite: **54 tests passed**.
 Actual-widget previews: `artifacts/search-select.png` and
 `artifacts/dashboard-desktop.png`.
 

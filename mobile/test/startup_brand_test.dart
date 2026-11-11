@@ -45,6 +45,21 @@ void main() {
           reason: 'Launch tile and Flutter rounded tile must match');
     }
   });
+  test('adaptive foreground stays inside circular launcher safe area', () {
+    final icon = img.decodePng(File(
+            'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png')
+        .readAsBytesSync())!;
+    var visible = 0;
+    final center = (icon.width - 1) / 2, radius = icon.width / 3;
+    for (final pixel in icon) {
+      if (pixel.a <= 5) continue;
+      visible++;
+      final x = pixel.x - center, y = pixel.y - center;
+      expect(x * x + y * y, lessThan(radius * radius),
+          reason: 'Launcher masks must not cut the ledger silhouette');
+    }
+    expect(visible, greaterThan(1000));
+  });
   testWidgets(
       'real initialization controls startup, with no forced splash delay',
       (tester) async {

@@ -35,7 +35,11 @@ void main() {
         width: size, height: size, interpolation: img.Interpolation.average)));
   }
 
-  final icon = mark(), foreground = mark(foreground: true);
+  final icon = mark();
+  final foreground = img.Image(width: 1024, height: 1024, numChannels: 4);
+  img.compositeImage(foreground,
+      img.copyResize(mark(foreground: true), width: 820, height: 820),
+      dstX: 102, dstY: 102);
   png('assets/brand/icon.png', icon, 1024);
   File('assets/brand/mark.svg').writeAsStringSync(
       '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="#123f36"/><rect x="246" y="205" width="514" height="607" rx="70" fill="#f7f6ed"/><rect x="246" y="205" width="78" height="607" rx="32" fill="#dfc285"/><g fill="#123f36"><rect x="402" y="350" width="46" height="306" rx="23"/><rect x="588" y="350" width="46" height="306" rx="23"/><rect x="424" y="480" width="188" height="46" rx="20"/><circle cx="708" cy="726" r="120"/></g><circle cx="708" cy="726" r="98" fill="#dfc285"/><g fill="#123f36"><rect x="658" y="696" width="100" height="28" rx="14"/><rect x="675" y="740" width="66" height="28" rx="14"/></g></svg>''');

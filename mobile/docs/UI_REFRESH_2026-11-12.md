@@ -32,7 +32,7 @@ sync behavior remains covered by the accounting regression suite.
 
 ## Evidence
 
-Local static analysis is clean. All **53 Flutter tests pass**, including delayed
+Local static analysis is clean. All **54 Flutter tests pass**, including delayed
 startup readiness, reduced motion, genuine launch images, narrow screens, Bengali
 dark mode at large text size, keyboard-safe saving and existing financial cases.
 `python tool/verify_brand_assets.py` checks source assets. CI additionally runs
