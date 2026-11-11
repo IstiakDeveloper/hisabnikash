@@ -52,6 +52,28 @@ resume and native animation performance still require device verification.
 
 ## Replacement builds
 
+Final source: `a50501ffc5397b85f5a7852d342ce8ce9f7ce5e0`.
+[IPA build and compiled-brand verification passed](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/43079501245)
+with Xcode 16.4; the IPA is version 0.2.0, build 4.
+[Mobile quality jobs passed](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/43079511171),
+including Android, iOS simulator and mobile sync API validation.
+
+Local release package: `artifacts/releases/0.2.0/`.
+
+- `HisabNikash-0.2.0-arm64.apk` — signed, approximately 24.3 MiB.
+- `HisabNikash-0.2.0-universal.apk` — signed, approximately 65.5 MiB.
+- `HisabNikash-0.2.0-unsigned.ipa` — unsigned, approximately 11.9 MiB.
+- `SHA256SUMS.txt`, verification JSON and `previews/`, including `startup-motion.gif`.
+
+Android checks confirm the existing signing certificate, release/AOT mode, a
+non-debuggable manifest, all three native launch scales, adaptive/themed resources
+and the exact Flutter brand asset. iOS checks confirm archive/checksum integrity,
+ARM64, compiled AppIcon references/images, launch storyboard, Assets.car and the
+exact Flutter brand asset. These checks do not establish handset visual behavior.
+
+Independent web-only linter/asset-build workflows retain pre-existing frontend
+issues. This mobile update does not modify the Laravel web application UI.
+
 Rebuild signed Android releases using the existing ignored release key; do not
 generate a new key. The standard APK paths are under `build/app/outputs/flutter-apk/`.
 The iOS workflow produces an unsigned release IPA, with checksums and source

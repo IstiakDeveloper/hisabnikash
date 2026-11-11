@@ -1,5 +1,11 @@
 # Build an iOS IPA from Windows using GitHub Actions
 
+Current release: **0.2.0**, built and verified in
+[run 43079501245](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/43079501245).
+The local review/install package is `artifacts/releases/0.2.0/`, including
+`HisabNikash-0.2.0-unsigned.ipa`. It includes the new icon, native splash and UI;
+the earlier 0.1.0 build below is historical evidence.
+
 The workflow is `.github/workflows/ios-ipa.yml`. It builds on a macOS runner;
 Windows does not run Xcode. The first unsigned ARM64 release build succeeded on
 GitHub with Flutter 3.24.4 and Xcode 16.4 (source commit `8c46cbb`).

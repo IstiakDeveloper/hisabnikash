@@ -10,6 +10,10 @@ native launcher icons and splash assets, branded loading/animation, genuine font
 weights, a revised dashboard and keyboard-safe save actions. See the report for
 preview images, verification and physical-device checks still required.
 
+The current install/review package is `artifacts/releases/0.2.0/`: signed ARM64
+and universal Android APKs, the unsigned ARM64 IPA, checksums and UI previews.
+The [0.2.0 IPA build and compiled-brand checks passed](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/43079501245).
+
 The eight defects reproduced by the [11 November audit](docs/MOBILE_AUDIT_AND_PLAN_2026-11-11.md)
 now have passing regression coverage in the normal test suite. The implementation
 adds account statements, payment corrections, bill edit scopes, readable conflicts,
@@ -20,8 +24,8 @@ See [implementation details and remaining release work](docs/IMPLEMENTATION_2026
 
 For iOS `.ipa` generation from Windows, see [the GitHub/macOS build guide](docs/IOS_IPA_BUILD.md).
 The manual workflow supports an unsigned archive or a signed Ad Hoc IPA using
-repository signing secrets. The [unsigned ARM64 IPA build passed on macOS](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/42885663778)
-using Xcode 16.4; the downloaded IPA and checksums are under `artifacts/ios/run-42885663778/`.
+repository signing secrets. The [current unsigned ARM64 IPA build passed on macOS](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/43079501245)
+using Xcode 16.4; the downloaded IPA and checksums are under `artifacts/ios/run-43079501245/`.
 
 The project currently builds against the machine's Flutter **3.24.4 / Dart 3.5.4**.
 Dependencies are locked in `pubspec.lock`. Android uses Java 17, compile SDK 35,
@@ -202,7 +206,7 @@ Verification in this workspace (11 November 2026):
 | Check | Result |
 | --- | --- |
 | Flutter static analysis | Passed, no issues |
-| Flutter financial/crypto/sync/UI/PDF tests | 53 passed after branding and startup refresh |
+| Flutter financial/crypto/sync/UI/PDF tests | 54 passed after branding and startup refresh |
 | Laravel mobile sync API tests | 9 passed, 34 assertions |
 | Android debug APK | Current source, universal debug APK built |
 | Android signed release APK | Built with a dedicated local release key; signature and non-debuggable manifest verified |
