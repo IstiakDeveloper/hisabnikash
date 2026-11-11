@@ -13,7 +13,54 @@ class BrandMark extends StatelessWidget {
       child: ClipRRect(
           borderRadius: BorderRadius.circular(size * .223),
           child: Image.asset('assets/brand/icon.png',
-              width: size, height: size, filterQuality: FilterQuality.high)));
+              width: size,
+              height: size,
+              filterQuality: FilterQuality.high,
+              frameBuilder: (context, child, frame, loadedSynchronously) =>
+                  frame == null
+                      ? CustomPaint(
+                          size: Size.square(size),
+                          painter: const _BrandPainter())
+                      : child,
+              errorBuilder: (context, error, stack) => CustomPaint(
+                  size: Size.square(size), painter: const _BrandPainter()))));
+}
+
+// Synchronous first-frame geometry prevents a blank logo while PNG decoding runs.
+class _BrandPainter extends CustomPainter {
+  const _BrandPainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 1024, size.height / 1024);
+    const green = Color(0xFF123F36),
+        ivory = Color(0xFFF7F6ED),
+        gold = Color(0xFFDFC285);
+    final brush = Paint();
+    void box(double x, double y, double width, double height, double radius,
+        Color color) {
+      brush.color = color;
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromLTWH(x, y, width, height), Radius.circular(radius)),
+          brush);
+    }
+
+    canvas.drawColor(green, BlendMode.src);
+    box(246, 205, 514, 607, 70, ivory);
+    box(246, 205, 78, 607, 32, gold);
+    box(402, 350, 46, 306, 23, green);
+    box(588, 350, 46, 306, 23, green);
+    box(424, 480, 188, 46, 20, green);
+    brush.color = green;
+    canvas.drawCircle(const Offset(708, 726), 120, brush);
+    brush.color = gold;
+    canvas.drawCircle(const Offset(708, 726), 98, brush);
+    box(658, 696, 100, 28, 14, green);
+    box(675, 740, 66, 28, 14, green);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BrandPainter oldDelegate) => false;
 }
 
 class StartupView extends StatelessWidget {
