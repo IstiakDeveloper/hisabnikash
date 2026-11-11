@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 import '../ui/design.dart';
+import '../ui/brand.dart';
 import '../ui/onboarding.dart';
 import '../ui/shell.dart';
 import '../ui/recovery.dart';
@@ -52,7 +53,6 @@ class _AppGateState extends ConsumerState<AppGate> with WidgetsBindingObserver {
   Future<void> _load() async {
     try {
       final repository = await ref.read(repositoryProvider.future);
-      await repository.ensureBillOccurrences();
       final onboarded = await repository.getSetting('onboarded') == 'true';
       final lock = await repository.getSetting('lock') == 'true';
       final dark = await repository.getSetting('dark') == 'true';
@@ -184,7 +184,15 @@ class _AppGateState extends ConsumerState<AppGate> with WidgetsBindingObserver {
                     const SizedBox(height: 24),
                     const Text('Your vault could not be opened'),
                     const SizedBox(height: 12),
-                    Text('$_error', textAlign: TextAlign.center),
+                    const Text(
+                        'Your saved data has not been changed. Try opening the vault again or recover from an encrypted backup.',
+                        textAlign: TextAlign.center),
+                    TextButton(
+                        onPressed: () {
+                          setState(() => _error = null);
+                          _load();
+                        },
+                        child: const Text('Try again')),
                     const SizedBox(height: 24),
                     FilledButton(
                         onPressed: () => Navigator.push(
@@ -204,13 +212,13 @@ class _AppGateState extends ConsumerState<AppGate> with WidgetsBindingObserver {
                   ]))));
     }
     if (!_ready) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return StartupView(bangla: ref.watch(languageProvider) == 'bn');
     }
     if (_locked || _covered) {
       return Scaffold(
           body: Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.spa_outlined, size: 56, color: forest),
+        const BrandMark(size: 72),
         const SizedBox(height: 20),
         Text('HisabNikash', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 12),

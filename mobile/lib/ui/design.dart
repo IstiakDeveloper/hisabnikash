@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../core/models.dart';
 import '../core/money.dart';
 
-const forest = Color(0xFF125B49);
-const mint = Color(0xFFDCEEE4);
+const forest = Color(0xFF123F36);
+const mint = Color(0xFFE5EEE7);
 const rust = Color(0xFFBC5C46);
 const ink = Color(0xFF202D28);
 
@@ -16,14 +16,18 @@ ThemeData appTheme(bool dark) {
     fontFamily: 'NotoSans',
     fontFamilyFallback: const ['NotoSansBengali'],
     scaffoldBackgroundColor:
-        dark ? const Color(0xFF121B17) : const Color(0xFFF7F8F4),
+        dark ? const Color(0xFF111E19) : const Color(0xFFF7F6F0),
     appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent, scrolledUnderElevation: 0),
     cardTheme: CardTheme(
         elevation: 0,
         margin: EdgeInsets.zero,
         color: dark ? const Color(0xFF1C2821) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+                color:
+                    dark ? const Color(0xFF2B3B32) : const Color(0xFFE8EAE3)))),
     inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: dark ? const Color(0xFF26342C) : const Color(0xFFF0F3EE),
@@ -34,21 +38,29 @@ ThemeData appTheme(bool dark) {
             const EdgeInsets.symmetric(horizontal: 18, vertical: 18)),
     filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 17),
+            minimumSize: const Size(48, 52),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16)))),
     navigationBarTheme: NavigationBarThemeData(
         elevation: 0,
         height: 76,
-        backgroundColor: dark ? const Color(0xFF1C2821) : Colors.white,
+        backgroundColor:
+            dark ? const Color(0xFF1C2821) : const Color(0xFFFEFEFA),
         indicatorColor: dark ? forest : mint),
     textTheme: const TextTheme(
         headlineLarge: TextStyle(
-            fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -1.4),
+            fontSize: 34,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -1.1,
+            fontFeatures: [FontFeature.tabularFigures()]),
         headlineMedium: TextStyle(
-            fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.8),
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.8,
+            fontFeatures: [FontFeature.tabularFigures()]),
         titleLarge: TextStyle(
-            fontSize: 21, fontWeight: FontWeight.w700, letterSpacing: -0.4),
+            fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.4),
         titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         bodyLarge: TextStyle(fontSize: 16, height: 1.5),
         bodyMedium: TextStyle(fontSize: 14, height: 1.45),

@@ -44,6 +44,8 @@ jobs:
       - run: flutter test
       - name: Validate signing helper tests
         run: python3 -B tool/test_ios_signing.py
+      - name: Verify native icon and splash assets
+        run: python3 -B tool/verify_brand_assets.py
 
       - name: Build unsigned device app
         if: github.event_name == 'push' || inputs.mode == 'unsigned'
@@ -54,6 +56,8 @@ jobs:
           cd build/ios/unsigned
           /usr/bin/zip -qry ../ipa/HisabNikash-unsigned.ipa Payload
           printf '%s\n' 'UNSIGNED: must be signed with a valid Apple identity/profile before device installation.' > ../ipa/UNSIGNED.txt
+          cd ../../..
+          python3 -B tool/verify_brand_assets.py --ipa build/ios/ipa/HisabNikash-unsigned.ipa
 
       - name: Prepare signing inputs
         if: inputs.mode == 'signed-ad-hoc'
@@ -104,6 +108,7 @@ jobs:
         run: |
           flutter build ipa --release --build-number "$GITHUB_RUN_NUMBER" --export-options-plist=ios/ExportOptions.generated.plist
           test -n "$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
+          python3 -B tool/verify_brand_assets.py --ipa "$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
 
       - name: Write checksums and source revision
         run: |
@@ -116,6 +121,13 @@ jobs:
         with:
           name: HisabNikash-ios-${{ inputs.mode || 'unsigned' }}-${{ github.run_number }}
           path: mobile/build/ios/ipa/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload actual widget previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: HisabNikash-ui-previews-${{ github.run_number }}
+          path: mobile/artifacts/*.png
           if-no-files-found: error
           retention-days: 7
 

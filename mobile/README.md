@@ -5,6 +5,11 @@ application is an optional sync host, not a dependency for everyday use.
 
 ## Latest implementation
 
+Version **0.2.0** implements the [icon, startup and UI refresh](docs/UI_REFRESH_2026-11-12.md):
+native launcher icons and splash assets, branded loading/animation, genuine font
+weights, a revised dashboard and keyboard-safe save actions. See the report for
+preview images, verification and physical-device checks still required.
+
 The eight defects reproduced by the [11 November audit](docs/MOBILE_AUDIT_AND_PLAN_2026-11-11.md)
 now have passing regression coverage in the normal test suite. The implementation
 adds account statements, payment corrections, bill edit scopes, readable conflicts,
@@ -73,7 +78,7 @@ is temporary; use the URL in your usual Chrome profile for longer-lived test dat
 
 Regression coverage includes a hand-calculated mixed ledger, future dates,
 cross-space visibility, selector search/create, space/account scoping, and
-320px/430px/1280px layouts. Current full Flutter suite: **49 tests passed**.
+320px/430px/1280px layouts. Current full Flutter suite: **53 tests passed**.
 Actual-widget previews: `artifacts/search-select.png` and
 `artifacts/dashboard-desktop.png`.
 
@@ -154,6 +159,23 @@ There is no guaranteed background sync. Cloud hosting is not deployed/configured
 
 ## Verify
 
+### Signed Android release APK
+
+The optimized, signed universal APK is
+`build/app/outputs/flutter-apk/app-release.apk`.
+Build it again with `flutter build apk --release`. Smaller per-architecture
+packages can be built with `flutter build apk --release --split-per-abi`.
+
+Local release signing uses `android/release-signing/hisabnikash-release.jks`
+and `android/key.properties`. Both are ignored by Git. Keep a secure backup of
+both files: future direct-distribution updates need the same signing key.
+Do not share the keystore or `key.properties` with APK recipients.
+
+The release APK passed Android signature verification and its manifest is not
+debuggable. This is a signed installable package, not evidence of a physical-device
+test or Play Store approval. A debug installation uses a different signing key;
+back up its financial data before replacing it with the release installation.
+
 ```sh
 cd mobile
 flutter analyze
@@ -175,19 +197,21 @@ tests. Those hosted workflows must actually run before claiming CI/iOS success.
 
 This is an executable development version, **not an App Store/Play release**.
 
-Verification in this workspace (10 November 2026):
+Verification in this workspace (11 November 2026):
 
 | Check | Result |
 | --- | --- |
 | Flutter static analysis | Passed, no issues |
-| Flutter financial/crypto/sync/UI/PDF tests | 49 passed after audit fixes |
+| Flutter financial/crypto/sync/UI/PDF tests | 53 passed after branding and startup refresh |
 | Laravel mobile sync API tests | 9 passed, 34 assertions |
 | Android debug APK | Current source, universal debug APK built |
+| Android signed release APK | Built with a dedicated local release key; signature and non-debuggable manifest verified |
 | Actual Android device | Not verified; the temporary emulator did not finish booting |
 | iOS compilation/device | ARM64 release and simulator build passed on GitHub macOS; physical device unverified |
 | Hosted CI and production sync deployment | Android/iOS/API jobs passed; production sync not deployed |
 
-The latest build is `build/app/outputs/flutter-apk/app-debug.apk`.
+The optimized Android build is `build/app/outputs/flutter-apk/app-release.apk`.
+The development build remains `build/app/outputs/flutter-apk/app-debug.apk`.
 Source and APK SHA-256 hashes are in `artifacts/android-debug-manifest.json`;
 regenerate after building with `powershell -NoProfile -ExecutionPolicy Bypass -File tool/write_build_manifest.ps1`.
 The actual widget preview is `artifacts/dashboard.png`; a generated sample report

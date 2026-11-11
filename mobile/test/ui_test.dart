@@ -26,9 +26,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     for (final font in ['NotoSans', 'NotoSansBengali']) {
-      await (FontLoader(font)
-            ..addFont(rootBundle.load('assets/fonts/$font-Regular.ttf')))
-          .load();
+      final loader = FontLoader(font);
+      for (final weight in ['Regular', 'Medium', 'SemiBold', 'Bold']) {
+        loader.addFont(rootBundle.load('assets/fonts/$font-$weight.ttf'));
+      }
+      await loader.load();
     }
     await (FontLoader('MaterialIcons')
           ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
@@ -41,6 +43,7 @@ void main() {
   testWidgets(
       'unsaved editor requires discard and account statement shows running balance',
       (tester) async {
+    final statementPreview = GlobalKey();
     final repository = FinanceRepository(FinanceDatabase.memory(),
         VaultCipher(await AesGcm.with256bits().newSecretKey()));
     addTearDown(repository.dispose);
@@ -73,7 +76,9 @@ void main() {
                           onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => AccountStatement(account))),
+                                  builder: (_) => RepaintBoundary(
+                                      key: statementPreview,
+                                      child: AccountStatement(account)))),
                           child: const Text('Statement')),
                     ]))))));
     await tester.tap(find.text('New entry'));
@@ -94,6 +99,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Account statement'), findsOneWidget);
     expect(find.text('Balance ${money(8000)}'), findsOneWidget);
+    await tester.runAsync(() async {
+      final image = await (statementPreview.currentContext!.findRenderObject()
+              as RenderRepaintBoundary)
+          .toImage();
+      await Directory('artifacts').create(recursive: true);
+      await File('artifacts/account-statement.png').writeAsBytes(
+          (await image.toByteData(format: ui.ImageByteFormat.png))!
+              .buffer
+              .asUint8List());
+    });
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await repository.reverse(
@@ -122,11 +137,25 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     var completed = false;
+    final onboardingPreview = GlobalKey();
     await tester.pumpWidget(ProviderScope(
         overrides: [repositoryProvider.overrideWith((ref) async => repository)],
         child: MaterialApp(
             theme: appTheme(false),
-            home: Onboarding(onComplete: () => completed = true))));
+            home: RepaintBoundary(
+                key: onboardingPreview,
+                child: Onboarding(onComplete: () => completed = true)))));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      final image = await (onboardingPreview.currentContext!.findRenderObject()
+              as RenderRepaintBoundary)
+          .toImage();
+      await Directory('artifacts').create(recursive: true);
+      await File('artifacts/onboarding.png').writeAsBytes(
+          (await image.toByteData(format: ui.ImageByteFormat.png))!
+              .buffer
+              .asUint8List());
+    });
     await tester.enterText(find.byType(TextField).last, '2500.50');
     await tester.ensureVisible(find.text('Start my money journey'));
     await tester.tap(find.text('Start my money journey'));
@@ -202,6 +231,17 @@ void main() {
     await tester.tap(find.text('Add transaction'));
     await tester.pumpAndSettle();
     expect(find.text('Add transaction'), findsOneWidget);
+    await tester.runAsync(() async {
+      final image = await (boundary.currentContext!.findRenderObject()
+              as RenderRepaintBoundary)
+          .toImage();
+      await File('artifacts/transaction-form.png').writeAsBytes(
+          (await image.toByteData(format: ui.ImageByteFormat.png))!
+              .buffer
+              .asUint8List());
+    });
+    expect(tester.getBottomRight(find.text('Save transaction')).dy,
+        lessThan(tester.view.physicalSize.height));
     await tester.tap(find.byWidgetPredicate(
         (w) => w is SearchSelectField && w.label == 'Category'));
     await tester.pumpAndSettle();
@@ -315,6 +355,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(await repository.getSetting('selectedSpace'), business);
     expect(find.text('Manage spaces'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets(
+      'Bengali dark dashboard supports large text and keyboard-safe save',
+      (tester) async {
+    final repository = FinanceRepository(FinanceDatabase.memory(),
+        VaultCipher(await AesGcm.with256bits().newSecretKey()));
+    addTearDown(repository.dispose);
+    final space = await repository
+        .save('space', {'name': 'ব্যক্তিগত', 'type': 'personal'});
+    await repository.save(
+        'account', {'name': 'নগদ টাকা', 'space': space, 'opening': 1250000});
+    for (final setting
+        in {'onboarded': 'true', 'dark': 'true', 'language': 'bn'}.entries) {
+      await repository.setSetting(setting.key, setting.value);
+    }
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final boundary = GlobalKey();
+    await tester.pumpWidget(ProviderScope(
+        overrides: [repositoryProvider.overrideWith((ref) async => repository)],
+        child: RepaintBoundary(key: boundary, child: const HisabNikashApp())));
+    await tester.pumpAndSettle();
+    expect(find.text('এক নজরে'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.runAsync(() async {
+      final image = await (boundary.currentContext!.findRenderObject()
+              as RenderRepaintBoundary)
+          .toImage();
+      await File('artifacts/dashboard-dark-bn-large.png').writeAsBytes(
+          (await image.toByteData(format: ui.ImageByteFormat.png))!
+              .buffer
+              .asUint8List());
+    });
+    await tester.tap(find.text('লেনদেন যোগ করুন'));
+    await tester.pumpAndSettle();
+    tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+    expect(tester.getBottomRight(find.text('Save transaction')).dy,
+        lessThan(844 - 280));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

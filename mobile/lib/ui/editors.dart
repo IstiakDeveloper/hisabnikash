@@ -10,6 +10,7 @@ import '../core/models.dart';
 import '../core/money.dart';
 import '../core/receipts.dart';
 import 'design.dart';
+import 'brand.dart';
 import 'search_select.dart';
 
 Future<void> openEditor(BuildContext context, String kind,
@@ -312,8 +313,19 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
       if (widget.kind == 'bill') await repository.ensureBillOccurrences();
       unawaited(HapticFeedback.lightImpact());
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context);
-        feedbackMessage(context, 'Saved on this device');
+        messenger.showSnackBar(SnackBar(
+            duration: const Duration(seconds: 2),
+            backgroundColor: forest,
+            content: Row(children: [
+              const Icon(Icons.check_circle_outline,
+                  color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: Text(
+                      '${widget.kind[0].toUpperCase()}${widget.kind.substring(1)} saved on this device'))
+            ])));
       }
     } catch (e) {
       if (mounted) {
@@ -338,8 +350,72 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
             appBar: AppBar(
                 title: Text(
                     '${widget.record == null ? 'Add' : 'Edit'} ${widget.kind}')),
+            bottomNavigationBar: async.valueOrNull == null
+                ? null
+                : AnimatedPadding(
+                    duration: Duration(
+                        milliseconds:
+                            MediaQuery.disableAnimationsOf(context) ? 0 : 160),
+                    padding: EdgeInsets.only(
+                        bottom: MediaQuery.viewInsetsOf(context).bottom),
+                    child: SafeArea(
+                        top: false,
+                        child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                            child: Center(
+                                heightFactor: 1,
+                                child: ConstrainedBox(
+                                    constraints:
+                                        const BoxConstraints(maxWidth: 560),
+                                    child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (_error != null)
+                                            Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 10),
+                                                child: Semantics(
+                                                    liveRegion: true,
+                                                    child: Text(_error!,
+                                                        style: TextStyle(
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .colorScheme
+                                                                .error)))),
+                                          FilledButton.icon(
+                                              onPressed: _busy
+                                                  ? null
+                                                  : () =>
+                                                      _save(async.valueOrNull!),
+                                              icon: _busy
+                                                  ? const SizedBox(
+                                                      width: 18,
+                                                      height: 18,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                              color:
+                                                                  Colors.white))
+                                                  : const Icon(
+                                                      Icons.check_rounded),
+                                              label: Text(_busy
+                                                  ? 'Saving…'
+                                                  : 'Save ${widget.kind}')),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                              tr(
+                                                  ref,
+                                                  'Private · Saved on this device',
+                                                  'ব্যক্তিগত · এই ডিভাইসে সংরক্ষিত'),
+                                              textAlign: TextAlign.center,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall),
+                                        ])))))),
             body: async.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const VaultSkeleton(),
                 error: (e, s) =>
                     const Center(child: Text('Could not open your records.')),
                 data: (state) {
@@ -661,35 +737,7 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                     if (widget.kind == 'account')
                                       const Text(
                                           'Opening balance is separate from your income. Use transactions for future changes.'),
-                                    if (_error != null)
-                                      Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 18),
-                                          child: Text(_error!,
-                                              style: TextStyle(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .error))),
-                                    const SizedBox(height: 28),
-                                    FilledButton.icon(
-                                        onPressed:
-                                            _busy ? null : () => _save(state),
-                                        icon: _busy
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                        strokeWidth: 2))
-                                            : const Icon(Icons.check),
-                                        label: Text(_busy
-                                            ? 'Saving…'
-                                            : 'Save ${widget.kind}')),
-                                    const SizedBox(height: 12),
-                                    const Center(
-                                        child: Text(
-                                            'Saved privately on your device',
-                                            style: TextStyle(fontSize: 12))),
+                                    const SizedBox(height: 24),
                                   ]))));
                 })));
   }

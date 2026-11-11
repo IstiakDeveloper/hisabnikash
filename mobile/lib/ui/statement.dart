@@ -4,6 +4,7 @@ import '../app/providers.dart';
 import '../core/money.dart';
 import 'activity.dart';
 import 'design.dart';
+import 'brand.dart';
 
 class AccountStatement extends ConsumerWidget {
   const AccountStatement(this.accountId, {super.key});
@@ -12,8 +13,11 @@ class AccountStatement extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
       appBar: AppBar(title: const Text('Account statement')),
       body: ref.watch(snapshotProvider).when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text(e.toString())),
+          loading: () => const VaultSkeleton(),
+          error: (e, _) => Center(
+              child: TextButton(
+                  onPressed: () => ref.invalidate(snapshotProvider),
+                  child: const Text('Could not load statement. Try again.'))),
           data: (state) {
             final account = state.find(accountId);
             if (account == null) {

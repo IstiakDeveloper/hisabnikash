@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../core/money.dart';
 import 'design.dart';
+import 'brand.dart';
 
 class Onboarding extends ConsumerStatefulWidget {
   const Onboarding({super.key, required this.onComplete});
@@ -63,7 +64,7 @@ class _OnboardingState extends ConsumerState<Onboarding> {
                   constraints: const BoxConstraints(maxWidth: 520),
                   child: ListView(padding: const EdgeInsets.all(28), children: [
                     Row(children: [
-                      const Icon(Icons.spa_outlined, color: forest, size: 30),
+                      const BrandMark(size: 42),
                       const SizedBox(width: 10),
                       const Expanded(
                           child: Text('HISABNIKASH',
@@ -80,7 +81,7 @@ class _OnboardingState extends ConsumerState<Onboarding> {
                               ? 'বাংলা'
                               : 'English'))
                     ]),
-                    const SizedBox(height: 58),
+                    const SizedBox(height: 36),
                     Align(
                         alignment: Alignment.centerLeft,
                         child: Container(

@@ -4,6 +4,7 @@ import '../app/providers.dart';
 import '../core/models.dart';
 import '../core/money.dart';
 import 'design.dart';
+import 'brand.dart';
 import 'editors.dart';
 import 'search_select.dart';
 
@@ -62,7 +63,7 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                 icon: const Icon(Icons.add)))
       ]),
       body: ref.watch(snapshotProvider).when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const VaultSkeleton(),
           error: (_, __) => const Center(child: Text('Could not load spaces.')),
           data: (state) {
             final month = ref.watch(monthProvider),

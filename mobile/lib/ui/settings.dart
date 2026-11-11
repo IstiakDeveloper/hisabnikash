@@ -11,6 +11,7 @@ import '../core/money.dart';
 import '../core/vault.dart';
 import '../core/reports.dart';
 import 'design.dart';
+import 'brand.dart';
 import 'editors.dart';
 import 'spaces.dart';
 import 'statement.dart';
@@ -196,7 +197,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                   color: mint, borderRadius: BorderRadius.circular(18)),
-              child: const Icon(Icons.spa_outlined, color: forest, size: 30)),
+              child: const BrandMark(size: 42)),
           const SizedBox(width: 16),
           Expanded(
               child: Column(
@@ -597,7 +598,7 @@ class ConflictsScreen extends ConsumerWidget {
             future: ref.read(syncProvider.future).then((s) => s.conflicts()),
             builder: (context, async) {
               if (!async.hasData) {
-                return const Center(child: CircularProgressIndicator());
+                return const VaultSkeleton();
               }
               final conflicts = async.data!;
               return ListView(padding: const EdgeInsets.all(24), children: [

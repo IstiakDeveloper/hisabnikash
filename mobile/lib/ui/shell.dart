@@ -10,6 +10,7 @@ import 'insights.dart';
 import 'settings.dart';
 import 'editors.dart';
 import 'design.dart';
+import 'brand.dart';
 import 'spaces.dart';
 
 class AppShell extends ConsumerWidget {
@@ -66,7 +67,8 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-          toolbarHeight: 80,
+          toolbarHeight:
+              MediaQuery.textScalerOf(context).scale(56).clamp(76, 120),
           titleSpacing: 24,
           title:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -77,7 +79,13 @@ class AppShell extends ConsumerWidget {
                     letterSpacing: 2.4,
                     fontWeight: FontWeight.w700)),
             const SizedBox(height: 5),
-            Text(titles[tab], style: Theme.of(context).textTheme.headlineMedium)
+            Text(titles[tab],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineMedium
+                    ?.copyWith(fontSize: 25))
           ]),
           actions: [
             IconButton(
@@ -115,7 +123,7 @@ class AppShell extends ConsumerWidget {
         ],
         Expanded(
             child: async.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const VaultSkeleton(),
                 error: (_, __) => Center(
                     child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -133,17 +141,19 @@ class AppShell extends ConsumerWidget {
                             _ContextBar(
                                 state: state, space: space, month: month),
                           Expanded(
-                              child: switch (tab) {
-                            0 =>
-                              Dashboard(state, onActivity: () => navigate(1)),
-                            1 => ActivityScreen(state),
-                            2 => PlansScreen(state),
-                            3 => InsightsScreen(state),
-                            _ => SettingsScreen(state),
-                          }),
+                              child: ContentEntrance(
+                                  key: ValueKey(tab),
+                                  child: switch (tab) {
+                                    0 => Dashboard(state,
+                                        onActivity: () => navigate(1)),
+                                    1 => ActivityScreen(state),
+                                    2 => PlansScreen(state),
+                                    3 => InsightsScreen(state),
+                                    _ => SettingsScreen(state),
+                                  })),
                         ]))))),
       ]),
-      floatingActionButton: tab < 2
+      floatingActionButton: tab == 1
           ? FloatingActionButton.extended(
               onPressed: addTransaction,
               backgroundColor: forest,
@@ -154,6 +164,8 @@ class AppShell extends ConsumerWidget {
       bottomNavigationBar: desktop
           ? null
           : NavigationBar(
+              height:
+                  MediaQuery.textScalerOf(context).scale(12) > 15 ? 100 : 76,
               selectedIndex: tab,
               onDestinationSelected: navigate,
               destinations: List.generate(
@@ -204,18 +216,19 @@ class _ContextBar extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 14)),
-                        Text(
-                            space == 'all'
-                                ? 'Combined overview'
-                                : current?.text('type') == 'business'
-                                    ? 'Business space'
-                                    : 'Personal space',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(fontSize: 11))
+                        if (MediaQuery.sizeOf(context).width >= 600)
+                          Text(
+                              space == 'all'
+                                  ? 'Combined overview'
+                                  : current?.text('type') == 'business'
+                                      ? 'Business space'
+                                      : 'Personal space',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(fontSize: 11))
                       ])),
                   const SizedBox(width: 6),
                   const Icon(Icons.expand_more, size: 18),
@@ -239,7 +252,9 @@ class _ContextBar extends ConsumerWidget {
                       DateTime(picked.year, picked.month);
                 }
               },
-              child: Text(DateFormat('MMM yyyy').format(month),
+              child: Text(
+                  DateFormat('MMM yyyy', ref.watch(languageProvider))
+                      .format(month),
                   style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.w600))),
@@ -250,7 +265,7 @@ class _ContextBar extends ConsumerWidget {
               icon: const Icon(Icons.chevron_right, size: 20)),
         ]);
     return Container(
-        margin: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        margin: const EdgeInsets.fromLTRB(20, 4, 20, 16),
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
             color: Theme.of(context).cardTheme.color,
@@ -258,7 +273,8 @@ class _ContextBar extends ConsumerWidget {
             border: Border.all(
                 color: Theme.of(context).dividerColor.withOpacity(.12))),
         child: LayoutBuilder(
-            builder: (context, constraints) => constraints.maxWidth < 330
+            builder: (context, constraints) => constraints.maxWidth < 330 ||
+                    MediaQuery.textScalerOf(context).scale(12) > 15
                 ? Column(children: [
                     Row(children: [spaces()]),
                     const Divider(height: 1),
