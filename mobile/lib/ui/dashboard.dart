@@ -1,13 +1,16 @@
+import 'localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../app/providers.dart';
 import '../core/models.dart';
 import '../core/money.dart';
+import 'brand.dart';
 import 'design.dart';
 import 'editors.dart';
 import 'activity.dart';
 import 'statement.dart';
+import 'finance_center.dart';
 
 class Dashboard extends ConsumerWidget {
   const Dashboard(this.state, {super.key, required this.onActivity});
@@ -15,15 +18,14 @@ class Dashboard extends ConsumerWidget {
   final VoidCallback onActivity;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final space = ref.watch(spaceProvider), hidden = ref.watch(privacyProvider);
-    final month = ref.watch(monthProvider);
+    final space = ref.watch(spaceProvider),
+        hidden = ref.watch(privacyProvider),
+        month = ref.watch(monthProvider);
     final accounts = state
         .of('account')
         .where((r) => space == 'all' || r.text('space') == space)
         .toList();
-    final balance = accounts.fold(0, (sum, r) => sum + state.balance(r));
-    final income = state.cashIn(space, month);
-    final expense = state.cashOut(space, month);
+    final balance = accounts.fold(0, (int sum, r) => sum + state.balance(r));
     final transactions = state
         .transactions(space, month)
         .where((r) => state.isPosted(r))
@@ -34,137 +36,182 @@ class Dashboard extends ConsumerWidget {
             !state.billPaid(r) && (space == 'all' || r.text('space') == space))
         .toList()
       ..sort((a, b) => a.text('due').compareTo(b.text('due')));
-    String display(int n) => hidden ? '••••••' : money(n);
-    return ListView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 110),
-        children: [
+    String display(int amount) => hidden ? '••••••' : money(amount);
+    return ContentEntrance(
+        child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+            children: [
           Container(
-              padding: const EdgeInsets.all(26),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                  color: forest, borderRadius: BorderRadius.circular(28)),
+                  color: forest, borderRadius: BorderRadius.circular(24)),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
                       Expanded(
-                          child: Text(tr(ref, 'Total balance', 'মোট ব্যালেন্স'),
-                              style:
-                                  const TextStyle(color: Color(0xFFC4DCD0)))),
+                          child: LText(
+                              tr(ref, 'Your balance', 'আপনার ব্যালেন্স'),
+                              style: const TextStyle(
+                                  color: Color(0xFFCCE0D4), fontSize: 14))),
                       const Icon(Icons.account_balance_wallet_outlined,
-                          color: Color(0xFFC4DCD0), size: 20)
+                          size: 22, color: Color(0xFFCCE0D4))
                     ]),
                     const SizedBox(height: 12),
                     FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
-                        child: Text(display(balance),
+                        child: LText(display(balance),
                             style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 43,
+                                fontSize: 40,
+                                height: 1.15,
                                 fontWeight: FontWeight.w600,
-                                letterSpacing: -1.5))),
-                    const SizedBox(height: 8),
-                    Text(
-                        tr(
-                            ref,
-                            'Across ${accounts.length} accounts · current balance',
-                            '${accounts.length}টি অ্যাকাউন্টের বর্তমান ব্যালেন্স'),
+                                letterSpacing: -1.4,
+                                fontFeatures: [FontFeature.tabularFigures()]))),
+                    const SizedBox(height: 12),
+                    LText(
+                        tr(ref, '${accounts.length} accounts · Available today',
+                            '${accounts.length}টি অ্যাকাউন্ট · আজকের ব্যালেন্স'),
                         style: const TextStyle(
-                            color: Color(0xFFB2CFC0), fontSize: 12)),
-                    const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Divider(color: Color(0xFF397360), height: 1)),
-                    Text(
-                        '${DateFormat('MMMM yyyy').format(month)} · Actual cash movement',
-                        style: const TextStyle(
-                            color: Color(0xFFC4DCD0), fontSize: 11)),
-                    const SizedBox(height: 14),
+                            color: Color(0xFFCCE0D4), fontSize: 12)),
+                    const SizedBox(height: 20),
                     Row(children: [
+                      const Icon(Icons.lock_outline_rounded,
+                          size: 14, color: Color(0xFFDFC285)),
+                      const SizedBox(width: 6),
                       Expanded(
-                          child: _metric(tr(ref, 'Cash in', 'টাকা এসেছে'),
-                              display(income), Icons.south_west)),
-                      Expanded(
-                          child: _metric(tr(ref, 'Cash out', 'টাকা গেছে'),
-                              display(expense), Icons.north_east))
+                          child: LText(
+                              tr(ref, 'Saved on this device',
+                                  'এই ডিভাইসে সংরক্ষিত'),
+                              style: const TextStyle(
+                                  color: Color(0xFFDFE9E0), fontSize: 12)))
                     ]),
                   ])),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           Row(children: [
-            const Icon(Icons.lock_outline, size: 13, color: Colors.grey),
-            const SizedBox(width: 6),
             Expanded(
-                child: Text(
-                    tr(ref, 'Saved on this device', 'এই ডিভাইসে সংরক্ষিত'),
-                    style: Theme.of(context).textTheme.bodySmall)),
-            if (state.conflicts > 0)
-              Text('${state.conflicts} conflicts',
-                  style: const TextStyle(color: rust))
+                child: FilledButton.icon(
+                    onPressed: () => openEditor(context, 'transaction'),
+                    icon: const Icon(Icons.add, size: 20),
+                    label:
+                        LText(tr(ref, 'Add transaction', 'লেনদেন যোগ করুন')))),
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+                tooltip: tr(ref, 'Add income', 'আয় যোগ করুন'),
+                onPressed: () =>
+                    openEditor(context, 'transaction', initialType: 'income'),
+                icon: const Icon(Icons.south_west)),
+            const SizedBox(width: 4),
+            IconButton.filledTonal(
+                tooltip: tr(ref, 'Transfer money', 'টাকা স্থানান্তর'),
+                onPressed: () =>
+                    openEditor(context, 'transaction', initialType: 'transfer'),
+                icon: const Icon(Icons.swap_horiz)),
           ]),
+          const SizedBox(height: 24),
+          LText(
+              '${DateFormat('MMMM yyyy', ref.watch(languageProvider)).format(month)} · ${tr(ref, 'Cash movement', 'টাকার চলাচল')}',
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 10),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+                child: _movement(
+                    context,
+                    tr(ref, 'Cash in', 'টাকা এসেছে'),
+                    display(state.cashIn(space, month)),
+                    Icons.south_west,
+                    forest)),
+            const SizedBox(width: 12),
+            Expanded(
+                child: _movement(
+                    context,
+                    tr(ref, 'Cash out', 'টাকা গেছে'),
+                    display(state.cashOut(space, month)),
+                    Icons.north_east,
+                    rust)),
+          ]),
+          if (state.conflicts > 0)
+            Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: LText('${state.conflicts} sync conflicts need review',
+                    style: const TextStyle(color: rust))),
           SectionTitle(tr(ref, 'Your accounts', 'আপনার অ্যাকাউন্ট'),
               action: tr(ref, 'Add', 'যোগ করুন'),
               onTap: () => openEditor(context, 'account')),
           if (accounts.isEmpty)
             const EmptyState('Give your money a home',
                 'Add cash, a bank account, or a mobile wallet.'),
-          ...accounts.map((account) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Surface(
-                  padding: 16,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => AccountStatement(account.id))),
-                  child: Row(children: [
-                    Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(14)),
-                        child: const Icon(Icons.account_balance_wallet_outlined,
-                            size: 22)),
-                    const SizedBox(width: 14),
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                          Text(account.text('name'),
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600)),
-                          Text(
-                              state.find(account.text('space'))?.text('name') ??
-                                  '',
-                              style: Theme.of(context).textTheme.bodySmall)
-                        ])),
-                    const SizedBox(width: 12),
-                    Flexible(
-                        flex: 2,
-                        child: Align(
-                            alignment: Alignment.centerRight,
+          if (accounts.isNotEmpty)
+            Surface(
+                padding: 4,
+                child: Column(children: [
+                  for (var i = 0; i < accounts.length; i++) ...[
+                    if (i > 0) const Divider(height: 1, indent: 64),
+                    ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                                color: mint,
+                                borderRadius: BorderRadius.circular(13)),
+                            child: Icon(
+                                accounts[i].text('type') == 'bank'
+                                    ? Icons.account_balance_outlined
+                                    : accounts[i].text('type') == 'wallet'
+                                        ? Icons.phone_android_rounded
+                                        : Icons.account_balance_wallet_outlined,
+                                color: forest,
+                                size: 20)),
+                        title: LText(accounts[i].text('name'),
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600)),
+                        subtitle:
+                            LText(state.find(accounts[i].text('space'))?.text('name') ?? '',
+                                style: Theme.of(context).textTheme.bodySmall),
+                        trailing: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 136),
                             child: FittedBox(
                                 fit: BoxFit.scaleDown,
-                                child: Text(display(state.balance(account)),
+                                child: LText(display(state.balance(accounts[i])),
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 17))))),
-                  ])))),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        fontFeatures: [
+                                          FontFeature.tabularFigures()
+                                        ])))),
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => AccountStatement(accounts[i].id)))),
+                  ],
+                ])),
+          const SizedBox(height: 16),
+          DailyReviewCard(state),
+          const SizedBox(height: 12),
+          MoneyHealthCard(state),
           if (bills.isNotEmpty) ...[
             SectionTitle(tr(ref, 'Coming up', 'সামনে যা দিতে হবে')),
             Surface(
+                padding: 14,
                 child: Column(
                     children: bills.take(3).map((bill) {
-              final overdue =
-                  bill.text('due').compareTo(dayKey(DateTime.now())) < 0;
-              return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.event_note_outlined,
-                      color: overdue ? rust : null),
-                  title: Text(bill.text('name')),
-                  subtitle:
-                      Text('${overdue ? 'Overdue · ' : ''}${bill.text('due')}'),
-                  trailing: Text(display(bill.number('amount')),
-                      style: const TextStyle(fontWeight: FontWeight.w700)));
-            }).toList())),
+                  final overdue =
+                      bill.text('due').compareTo(dayKey(financeNow())) < 0;
+                  return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.calendar_today_outlined,
+                          color: overdue ? rust : forest, size: 22),
+                      title: Text(bill.text('name'),
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w500)),
+                      subtitle: LText(
+                          '${overdue ? 'Overdue · ' : ''}${bill.text('due')}'),
+                      trailing: LText(display(bill.number('amount')),
+                          style: const TextStyle(fontWeight: FontWeight.w600)));
+                }).toList())),
           ],
           SectionTitle(tr(ref, 'Recent activity', 'সাম্প্রতিক লেনদেন'),
               action: tr(ref, 'See all', 'সব দেখুন'), onTap: onActivity),
@@ -175,14 +222,10 @@ class Dashboard extends ConsumerWidget {
                     ref,
                     'Your transactions will appear here. Add your first one whenever you are ready.',
                     'প্রথম লেনদেন যোগ করুন, এখানে আপনার হিসাব দেখতে পাবেন।'),
-                icon: Icons.receipt_long_outlined,
-                action: TextButton(
-                    onPressed: () => openEditor(context, 'transaction'),
-                    child:
-                        Text(tr(ref, 'Add a transaction', 'লেনদেন যোগ করুন'))))
+                icon: Icons.receipt_long_outlined)
           else
             Surface(
-                padding: 14,
+                padding: 12,
                 child: Column(
                     children: transactions
                         .take(5)
@@ -193,29 +236,38 @@ class Dashboard extends ConsumerWidget {
                                 transactionDetails(context, ref, r, state)))
                         .toList())),
           const SizedBox(height: 24),
-          Text(
-              '${DateFormat('MMMM').format(month)} · ${tr(ref, 'Small steps make a big difference.', 'ছোট ছোট পদক্ষেপেই বড় পরিবর্তন।')}',
+          LText(
+              tr(ref, 'A little clarity, every day.',
+                  'প্রতিদিনের হিসাবে স্বচ্ছতা।'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall),
-        ]);
+        ]));
   }
 
-  Widget _metric(String label, String value, IconData icon) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(icon, color: const Color(0xFFC4DCD0), size: 14),
-          const SizedBox(width: 5),
-          Text(label,
-              style: const TextStyle(color: Color(0xFFC4DCD0), fontSize: 12))
-        ]),
-        const SizedBox(height: 8),
-        FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(value,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 21))),
-      ]);
+  Widget _movement(BuildContext context, String label, String amount,
+      IconData icon, Color color) {
+    final visibleColor = Theme.of(context).brightness == Brightness.dark
+        ? (color == forest ? const Color(0xFFA8D8C4) : const Color(0xFFEDA88D))
+        : color;
+    return Surface(
+        padding: 16,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(icon, size: 16, color: visibleColor),
+            const SizedBox(width: 6),
+            Expanded(
+                child:
+                    LText(label, style: Theme.of(context).textTheme.bodySmall))
+          ]),
+          const SizedBox(height: 10),
+          FittedBox(
+              fit: BoxFit.scaleDown,
+              child: LText(amount,
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: visibleColor,
+                      fontFeatures: const [FontFeature.tabularFigures()]))),
+        ]));
+  }
 }

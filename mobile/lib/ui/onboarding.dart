@@ -1,8 +1,10 @@
+import 'localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../core/money.dart';
 import 'design.dart';
+import 'brand.dart';
 
 class Onboarding extends ConsumerStatefulWidget {
   const Onboarding({super.key, required this.onComplete});
@@ -63,10 +65,10 @@ class _OnboardingState extends ConsumerState<Onboarding> {
                   constraints: const BoxConstraints(maxWidth: 520),
                   child: ListView(padding: const EdgeInsets.all(28), children: [
                     Row(children: [
-                      const Icon(Icons.spa_outlined, color: forest, size: 30),
+                      const BrandMark(size: 42),
                       const SizedBox(width: 10),
                       const Expanded(
-                          child: Text('HISABNIKASH',
+                          child: LText('HISABNIKASH',
                               style: TextStyle(
                                   letterSpacing: 2,
                                   fontWeight: FontWeight.w700,
@@ -76,11 +78,11 @@ class _OnboardingState extends ConsumerState<Onboarding> {
                                   .read(languageProvider.notifier)
                                   .state =
                               ref.read(languageProvider) == 'en' ? 'bn' : 'en',
-                          child: Text(ref.watch(languageProvider) == 'en'
+                          child: LText(ref.watch(languageProvider) == 'en'
                               ? 'বাংলা'
                               : 'English'))
                     ]),
-                    const SizedBox(height: 58),
+                    const SizedBox(height: 36),
                     Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
@@ -89,14 +91,14 @@ class _OnboardingState extends ConsumerState<Onboarding> {
                             decoration: BoxDecoration(
                                 color: mint,
                                 borderRadius: BorderRadius.circular(30)),
-                            child: const Text('PRIVATE BY DESIGN',
+                            child: const LText('PRIVATE BY DESIGN',
                                 style: TextStyle(
                                     color: forest,
                                     fontSize: 11,
                                     letterSpacing: 1.5,
                                     fontWeight: FontWeight.w700)))),
                     const SizedBox(height: 24),
-                    Text(
+                    LText(
                         tr(ref, 'A little clarity.\nA lot more calm.',
                             'হিসাব পরিষ্কার।\nজীবন আরও সহজ।'),
                         style: Theme.of(context)
@@ -104,7 +106,7 @@ class _OnboardingState extends ConsumerState<Onboarding> {
                             .headlineLarge
                             ?.copyWith(fontSize: 42, height: 1.15)),
                     const SizedBox(height: 20),
-                    Text(
+                    LText(
                         tr(
                             ref,
                             'Make room for what matters. Keep your everyday money in order, even without internet.',
@@ -115,7 +117,7 @@ class _OnboardingState extends ConsumerState<Onboarding> {
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                          Text(
+                          LText(
                               tr(ref, 'Start with your first account',
                                   'প্রথম অ্যাকাউন্ট তৈরি করুন'),
                               style: Theme.of(context).textTheme.titleMedium),
@@ -138,24 +140,24 @@ class _OnboardingState extends ConsumerState<Onboarding> {
                                       'প্রারম্ভিক ব্যালেন্স'),
                                   prefixText: '৳ ')),
                           const SizedBox(height: 12),
-                          const Text(
+                          const LText(
                               'BDT · Opening balance is not counted as income.',
                               style: TextStyle(fontSize: 12)),
                         ])),
                     if (_error != null)
                       Padding(
                           padding: const EdgeInsets.only(top: 16),
-                          child: Text(_error!,
+                          child: LText(_error!,
                               style: TextStyle(
                                   color: Theme.of(context).colorScheme.error))),
                     const SizedBox(height: 24),
                     FilledButton(
                         onPressed: _busy ? null : _start,
-                        child: Text(_busy
+                        child: LText(_busy
                             ? 'Creating your vault…'
                             : tr(ref, 'Start my money journey', 'শুরু করুন'))),
                     const SizedBox(height: 18),
-                    Text(
+                    LText(
                         tr(
                             ref,
                             'No signup. No internet needed. Optional sync later.',

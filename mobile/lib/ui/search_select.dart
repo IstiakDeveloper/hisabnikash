@@ -1,3 +1,4 @@
+import 'localization.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -84,9 +85,10 @@ class _SearchPickerState extends State<_SearchPicker> {
   Widget build(BuildContext context) {
     final query = _search.text.trim().toLowerCase();
     final filtered = widget.options
-        .where((option) => '${option.label} ${option.subtitle ?? ''}'
-            .toLowerCase()
-            .contains(query))
+        .where((option) =>
+            '${option.label} ${localText(context, option.label)} ${option.subtitle ?? ''}'
+                .toLowerCase()
+                .contains(query))
         .toList();
     return CallbackShortcuts(
         bindings: {
@@ -99,10 +101,10 @@ class _SearchPickerState extends State<_SearchPicker> {
               padding: const EdgeInsets.fromLTRB(24, 18, 12, 12),
               child: Row(children: [
                 Expanded(
-                    child: Text(widget.title,
+                    child: LText(localText(context, widget.title),
                         style: Theme.of(context).textTheme.titleLarge)),
                 IconButton(
-                    tooltip: 'Close selection',
+                    tooltip: localText(context, 'Close selection'),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close)),
               ])),
@@ -119,17 +121,18 @@ class _SearchPickerState extends State<_SearchPicker> {
                     }
                   },
                   decoration: InputDecoration(
-                      hintText: 'Search ${widget.title.toLowerCase()}…',
+                      hintText: localText(
+                          context, 'Search ${widget.title.toLowerCase()}…'),
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: query.isEmpty
                           ? null
                           : IconButton(
-                              tooltip: 'Clear search',
+                              tooltip: localText(context, 'Clear search'),
                               icon: const Icon(Icons.close, size: 18),
                               onPressed: () => setState(_search.clear))))),
           Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 6),
-              child: Text(
+              child: LText(
                   '${filtered.length} ${filtered.length == 1 ? 'option' : 'options'}',
                   style: Theme.of(context).textTheme.bodySmall)),
           Expanded(
@@ -141,11 +144,11 @@ class _SearchPickerState extends State<_SearchPicker> {
                               Column(mainAxisSize: MainAxisSize.min, children: [
                             const Icon(Icons.search_off, size: 32),
                             const SizedBox(height: 12),
-                            Text(query.isEmpty
+                            LText(query.isEmpty
                                 ? 'No options yet'
                                 : 'No matching results'),
                             const SizedBox(height: 6),
-                            const Text('Try another name or create a new one.',
+                            const LText('Try another name or create a new one.',
                                 textAlign: TextAlign.center)
                           ])))
                   : ListView.separated(
@@ -172,7 +175,7 @@ class _SearchPickerState extends State<_SearchPicker> {
                                     fontWeight: FontWeight.w600)),
                             subtitle: option.subtitle == null
                                 ? null
-                                : Text(option.subtitle!),
+                                : LText(option.subtitle!),
                             trailing: selected
                                 ? Icon(Icons.check_circle,
                                     color:
@@ -187,7 +190,7 @@ class _SearchPickerState extends State<_SearchPicker> {
                 child: OutlinedButton.icon(
                     onPressed: () => Navigator.pop(context, createSelection),
                     icon: Icon(widget.actionIcon),
-                    label: Text(widget.actionLabel!)))
+                    label: LText(localText(context, widget.actionLabel!))))
           ],
           const SizedBox(height: 8),
         ]));
@@ -255,7 +258,9 @@ class SearchSelectField extends StatelessWidget {
                       prefixIcon: icon == null ? null : Icon(icon),
                       suffixIcon:
                           const Icon(Icons.unfold_more_rounded, size: 20)),
-                  child: Text(choices[field.value] ?? 'Search and select',
+                  child: Text(
+                      choices[field.value] ??
+                          localText(context, 'Search and select'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

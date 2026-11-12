@@ -51,6 +51,8 @@ List<LedgerLine> journalLines(Json tx) {
   final amount = tx['amount'] as int;
   if (amount <= 0) throw ArgumentError('Amount must be positive');
   final account = tx['account'] as String;
+  final fee = tx['fee'] as int? ?? 0;
+  final lines = <LedgerLine>[];
   switch (tx['type']) {
     case 'reversal':
       return journalLines({...tx, 'type': tx['originalType']})
@@ -58,25 +60,34 @@ List<LedgerLine> journalLines(Json tx) {
           .toList();
     case 'income':
     case 'debt_collection':
-      return [
+    case 'refund':
+      lines.addAll([
         LedgerLine(account, amount),
         LedgerLine('external:income', -amount)
-      ];
+      ]);
+      break;
     case 'expense':
     case 'debt_payment':
-      return [
+      lines.addAll([
         LedgerLine(account, -amount),
         LedgerLine('external:expense', amount)
-      ];
+      ]);
+      break;
     case 'transfer':
       final destination = tx['destination'] as String;
       if (destination == account) {
         throw ArgumentError('Choose different accounts');
       }
-      return [LedgerLine(account, -amount), LedgerLine(destination, amount)];
+      lines.addAll(
+          [LedgerLine(account, -amount), LedgerLine(destination, amount)]);
+      break;
     default:
       throw ArgumentError('Unsupported transaction type');
   }
+  if (fee > 0) {
+    lines.addAll([LedgerLine(account, -fee), LedgerLine('external:fees', fee)]);
+  }
+  return lines;
 }
 
 class FinanceSnapshot {
@@ -115,22 +126,62 @@ class FinanceSnapshot {
   String categoryName(Record r) =>
       find(categoryIdentity(r))?.text('name') ?? r.text('category');
   bool isPosted(Record r, {DateTime? asOf}) =>
-      r.text('date').compareTo(dayKey(asOf ?? DateTime.now())) <= 0;
+      r.text('date').compareTo(dayKey(asOf ?? financeNow())) <= 0;
   bool isReversed(Record r) =>
       of('transaction').any((t) => t.text('reversalOf') == r.id && isPosted(t));
-  String effectiveType(Record r) =>
-      r.text('type') == 'reversal' ? r.text('originalType') : r.text('type');
+  String effectiveType(Record r) {
+    final type =
+        r.text('type') == 'reversal' ? r.text('originalType') : r.text('type');
+    return type == 'refund' ? 'expense' : type;
+  }
+
   int signedAmount(Record r) =>
-      (r.text('type') == 'reversal' ? -1 : 1) * r.number('amount');
+      (r.text('type') == 'reversal' ? -1 : 1) *
+      ((r.text('type') == 'refund' || r.text('originalType') == 'refund')
+          ? -1
+          : 1) *
+      r.number('amount');
+  Map<String, int> expenseParts(Record r) {
+    final result = <String, int>{};
+    if (r.flag('adjustment')) return result;
+    if (effectiveType(r) == 'expense') {
+      final splits = r.data['splits'] as List? ?? const [];
+      if (splits.isEmpty) {
+        result[categoryName(r)] = signedAmount(r);
+      } else {
+        final sign = signedAmount(r) < 0 ? -1 : 1;
+        for (final split in splits) {
+          final category =
+              find(split['categoryId'] as String? ?? '')?.text('name') ??
+                  split['category'] as String;
+          result.update(category, (v) => v + sign * (split['amount'] as int),
+              ifAbsent: () => sign * (split['amount'] as int));
+        }
+      }
+    }
+    if (r.number('fee') > 0) {
+      final sign = r.text('type') == 'reversal' ? -1 : 1;
+      final category = r.text('feeCategory', 'Fees');
+      result.update(category, (v) => v + sign * r.number('fee'),
+          ifAbsent: () => sign * r.number('fee'));
+    }
+    return result;
+  }
+
   bool belongsToSpace(Record r, String space) =>
       space == 'all' ||
       r.text('space') == space ||
       (effectiveType(r) == 'transfer' &&
           find(r.text('destination'))?.text('space') == space);
   int balance(Record account, {DateTime? asOf}) {
-    final cutoff = dayKey(asOf ?? DateTime.now());
+    final cutoff = dayKey(asOf ?? financeNow());
     final balances = _index.balances.putIfAbsent(cutoff, () {
-      final result = {for (final a in of('account')) a.id: a.number('opening')};
+      final result = {
+        for (final a in of('account'))
+          a.id: a.text('openingDate').compareTo(cutoff) <= 0
+              ? a.number('opening')
+              : 0
+      };
       for (final r in of('transaction')) {
         if (r.text('date').compareTo(cutoff) > 0) continue;
         for (final line in journalLines(r.data)) {
@@ -154,24 +205,34 @@ class FinanceSnapshot {
   }
 
   int total(String space, DateTime month, String type) {
-    final cutoff = dayKey(DateTime.now());
+    final cutoff = dayKey(financeNow());
+    if (type == 'expense') {
+      return transactions(space, month)
+          .where((r) => r.text('space') == space || space == 'all')
+          .where((r) => isPosted(r))
+          .fold(
+              0,
+              (sum, r) =>
+                  sum + expenseParts(r).values.fold<int>(0, (a, b) => a + b));
+    }
     return transactions(space, month)
         .where((r) =>
-            effectiveType(r) == type && r.text('date').compareTo(cutoff) <= 0)
+            !r.flag('adjustment') &&
+            effectiveType(r) == type &&
+            r.text('date').compareTo(cutoff) <= 0)
         .fold(0, (sum, r) => sum + signedAmount(r));
   }
 
   int spent(String space, String month, String category) {
-    final cutoff = dayKey(DateTime.now()),
-        identity = categoryId(space, 'expense', category);
+    final cutoff = dayKey(financeNow());
+    final identity = categoryId(space, 'expense', category);
+    final name = find(identity)?.text('name') ?? category;
     return of('transaction')
         .where((r) =>
             r.text('space') == space &&
-            effectiveType(r) == 'expense' &&
             r.text('date').compareTo(cutoff) <= 0 &&
-            r.text('date').startsWith(month) &&
-            categoryIdentity(r) == identity)
-        .fold(0, (sum, r) => sum + signedAmount(r));
+            r.text('date').startsWith(month))
+        .fold(0, (sum, r) => sum + (expenseParts(r)[name] ?? 0));
   }
 
   int spaceBalance(String space, {DateTime? asOf}) => of('account')
@@ -179,7 +240,7 @@ class FinanceSnapshot {
       .fold(0, (sum, r) => sum + balance(r, asOf: asOf));
   int transferTotal(String space, DateTime month, {required bool incoming}) {
     if (space == 'all') return 0;
-    final cutoff = dayKey(DateTime.now());
+    final cutoff = dayKey(financeNow());
     return transactions(space, month)
         .where((r) =>
             effectiveType(r) == 'transfer' &&
@@ -195,15 +256,17 @@ class FinanceSnapshot {
   int cashIn(String space, DateTime month) =>
       total(space, month, 'income') +
       total(space, month, 'debt_collection') +
+      adjustmentTotal(space, month, incoming: true) +
       transferTotal(space, month, incoming: true);
   int cashOut(String space, DateTime month) =>
       total(space, month, 'expense') +
       total(space, month, 'debt_payment') +
+      adjustmentTotal(space, month, incoming: false) +
       transferTotal(space, month, incoming: false);
   int cashFlow(String space, DateTime month) =>
       cashIn(space, month) - cashOut(space, month);
   List<StatementEntry> statement(Record account, {DateTime? asOf}) {
-    final cutoff = dayKey(asOf ?? DateTime.now());
+    final cutoff = dayKey(asOf ?? financeNow());
     final posted = of('transaction')
         .where((r) =>
             r.text('date').compareTo(cutoff) <= 0 &&
@@ -225,13 +288,25 @@ class FinanceSnapshot {
     }).toList();
   }
 
-  bool billPaid(Record bill) =>
-      bill.flag('paid') ||
-      of('transaction').any((r) => r.text('bill') == bill.id && !isReversed(r));
+  int adjustmentTotal(String space, DateTime month, {required bool incoming}) =>
+      transactions(space, month)
+          .where((r) =>
+              r.flag('adjustment') &&
+              isPosted(r) &&
+              effectiveType(r) == (incoming ? 'income' : 'expense'))
+          .fold(0, (sum, r) => sum + signedAmount(r));
+  int billPaidAmount(Record bill) => bill.flag('paid')
+      ? bill.number('amount')
+      : of('transaction')
+          .where(
+              (r) => r.text('bill') == bill.id && isPosted(r) && !isReversed(r))
+          .fold(0, (sum, r) => sum + r.number('amount'));
+  bool billPaid(Record bill) => billPaidAmount(bill) >= bill.number('amount');
   int repaid(Record loan) =>
       loan.number('repaid') +
       of('transaction')
-          .where((r) => r.text('loan') == loan.id && !isReversed(r))
+          .where(
+              (r) => r.text('loan') == loan.id && isPosted(r) && !isReversed(r))
           .fold(0, (sum, r) => sum + r.number('amount'));
 }
 

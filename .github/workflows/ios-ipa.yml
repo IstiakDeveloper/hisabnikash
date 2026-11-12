@@ -1,0 +1,142 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: ['codex/ios-ipa-build']
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Unsigned cannot install directly; signed needs Apple distribution secrets'
+        type: choice
+        options: [unsigned, signed-ad-hoc]
+        default: unsigned
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ipa:
+    runs-on: macos-15-intel
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.4'
+          channel: stable
+          cache: true
+      - name: Record build tools
+        run: |
+          flutter --version
+          xcodebuild -version
+          pod --version
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Validate signing helper tests
+        run: python3 -B tool/test_ios_signing.py
+      - name: Verify native icon and splash assets
+        run: python3 -B tool/verify_brand_assets.py
+
+      - name: Build unsigned device app
+        if: github.event_name == 'push' || inputs.mode == 'unsigned'
+        run: |
+          flutter build ios --release --no-codesign --build-number "$GITHUB_RUN_NUMBER"
+          mkdir -p build/ios/ipa build/ios/unsigned/Payload
+          ditto build/ios/iphoneos/Runner.app build/ios/unsigned/Payload/Runner.app
+          cd build/ios/unsigned
+          /usr/bin/zip -qry ../ipa/HisabNikash-unsigned.ipa Payload
+          printf '%s\n' 'UNSIGNED: must be signed with a valid Apple identity/profile before device installation.' > ../ipa/UNSIGNED.txt
+          cd ../../..
+          python3 -B tool/verify_brand_assets.py --ipa build/ios/ipa/HisabNikash-unsigned.ipa
+
+      - name: Prepare signing inputs
+        if: inputs.mode == 'signed-ad-hoc'
+        env:
+          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+        run: |
+          python3 tool/prepare_ios_signing.py
+
+      - name: Import signing identity
+        if: inputs.mode == 'signed-ad-hoc'
+        env:
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/hisab-ios/certificate.p12" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+          security cms -D -i "$RUNNER_TEMP/hisab-ios/profile.mobileprovision" > "$RUNNER_TEMP/hisab-ios/profile.plist"
+          python3 tool/prepare_ios_signing.py --profile
+
+      - name: Configure Runner signing
+        if: inputs.mode == 'signed-ad-hoc'
+        run: |
+          flutter build ios --config-only --release --no-codesign --build-number "$GITHUB_RUN_NUMBER"
+          cd ios
+          pod install
+          ruby -rxcodeproj -e '
+            project = Xcodeproj::Project.open("Runner.xcodeproj")
+            target = project.targets.find { |t| t.name == "Runner" }
+            abort "Runner target missing" unless target
+            target.build_configurations.each do |config|
+              next unless config.name == "Release"
+              config.build_settings["CODE_SIGN_STYLE"] = "Manual"
+              config.build_settings["DEVELOPMENT_TEAM"] = ENV.fetch("IOS_TEAM_ID")
+              config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = ENV.fetch("IOS_PROFILE_UUID")
+              config.build_settings["CODE_SIGN_IDENTITY"] = "Apple Distribution"
+              config.build_settings["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = "Apple Distribution"
+            end
+            project.save
+          '
+
+      - name: Build signed Ad Hoc IPA
+        if: inputs.mode == 'signed-ad-hoc'
+        run: |
+          flutter build ipa --release --build-number "$GITHUB_RUN_NUMBER" --export-options-plist=ios/ExportOptions.generated.plist
+          test -n "$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
+          python3 -B tool/verify_brand_assets.py --ipa "$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
+
+      - name: Write checksums and source revision
+        run: |
+          cd build/ios/ipa
+          shasum -a 256 ./*.ipa > SHA256SUMS.txt
+          printf 'Source commit: %s\nMode: %s\nRun: %s\n' "$GITHUB_SHA" "$BUILD_MODE" "$GITHUB_RUN_ID" > BUILD.txt
+        env:
+          BUILD_MODE: ${{ inputs.mode || 'unsigned' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HisabNikash-ios-${{ inputs.mode || 'unsigned' }}-${{ github.run_number }}
+          path: mobile/build/ios/ipa/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload actual widget previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: HisabNikash-ui-previews-${{ github.run_number }}
+          path: mobile/artifacts/*.png
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove signing material
+        if: always() && inputs.mode == 'signed-ad-hoc'
+        run: |
+          if [ -n "${KEYCHAIN_PATH:-}" ] && [ -f "$KEYCHAIN_PATH" ]; then security delete-keychain "$KEYCHAIN_PATH"; fi
+          if [ -n "${IOS_PROFILE_UUID:-}" ]; then rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$IOS_PROFILE_UUID.mobileprovision"; fi
+          rm -f ios/ExportOptions.generated.plist
+          rm -rf "$RUNNER_TEMP/hisab-ios"

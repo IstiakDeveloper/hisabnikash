@@ -9,16 +9,24 @@ import '../app/providers.dart';
 import '../core/models.dart';
 import '../core/money.dart';
 import '../core/receipts.dart';
+import '../core/repository.dart';
 import 'design.dart';
+import 'brand.dart';
 import 'search_select.dart';
+import 'finance_center.dart';
+import 'localization.dart';
 
 Future<void> openEditor(BuildContext context, String kind,
-        {Record? record, String? initialSpace, String? initialType}) =>
+        {Record? record,
+        String? initialSpace,
+        String? initialType,
+        Json? initialData}) =>
     Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => RecordEditor(
             kind: kind,
             record: record,
             initialSpace: initialSpace,
+            initialData: initialData,
             initialType: initialType)));
 
 class RecordEditor extends ConsumerStatefulWidget {
@@ -27,10 +35,12 @@ class RecordEditor extends ConsumerStatefulWidget {
       required this.kind,
       this.record,
       this.initialSpace,
+      this.initialData,
       this.initialType});
   final String kind;
   final Record? record;
   final String? initialSpace, initialType;
+  final Json? initialData;
   @override
   ConsumerState<RecordEditor> createState() => _RecordEditorState();
 }
@@ -40,6 +50,14 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
   final _name = TextEditingController(),
       _amount = TextEditingController(),
       _note = TextEditingController();
+  final _fee = TextEditingController(text: '0');
+  final _interval = TextEditingController(text: '7');
+  List<Json>? _splits;
+  bool _discretionary = false, _draftOffered = false, _saved = false;
+  Timer? _draftTimer;
+  Future<void>? _draftWrite;
+  String? _queuedDraft;
+  String get _draftKey => 'draft:${widget.kind}:${widget.record?.id ?? 'new'}';
   String _type = 'expense',
       _space = '',
       _account = '',
@@ -48,7 +66,7 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
   String _frequency = 'monthly', _direction = 'borrowed';
   String _billScope = 'future';
   String _spaceType = 'personal', _accountType = 'cash';
-  DateTime _date = DateTime.now();
+  DateTime _date = financeNow();
   bool _initialized = false, _busy = false;
   String? _error;
   Json? _receipt;
@@ -69,8 +87,109 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
         _accountType,
         dayKey(_date),
         _receipt,
-        _billScope
+        _billScope,
+        _fee.text,
+        _splits,
+        _discretionary,
+        _interval.text
       ]);
+  @override
+  void initState() {
+    super.initState();
+    for (final c in [_name, _amount, _note, _fee, _interval]) {
+      c.addListener(_queueDraft);
+    }
+  }
+
+  void _queueDraft() {
+    if (!_initialized ||
+        _initialDraft == null ||
+        _saved ||
+        _draft == _queuedDraft) return;
+    _queuedDraft = _draft;
+    _draftTimer?.cancel();
+    if (_draft == _initialDraft) return;
+    _draftTimer = Timer(const Duration(milliseconds: 700), () async {
+      try {
+        _draftWrite = (await ref.read(repositoryProvider.future)).writePrivate(
+            _draftKey,
+            {
+              'values': jsonDecode(_draft),
+              'sourceVersion': widget.record?.localVersion
+            },
+            notify: false);
+        await _draftWrite;
+      } catch (_) {/* Keep the active form. */}
+    });
+  }
+
+  Future<void> _offerDraft() async {
+    if (_draftOffered) return;
+    _draftOffered = true;
+    if (widget.record == null && widget.initialData == null) {
+      final defaults = await (await ref.read(repositoryProvider.future))
+          .privateData('favorites');
+      if (!mounted) return;
+      final state = ref.read(snapshotProvider).valueOrNull;
+      final account = state?.find(defaults['account:$_space'] as String? ?? '');
+      setState(() {
+        if (account != null && account.text('space') == _space) {
+          _account = account.id;
+        }
+        final category = defaults['category:$_space:$_type'];
+        if (category is String) _category = category;
+        _initialDraft = _draft;
+      });
+    }
+    final draft = await (await ref.read(repositoryProvider.future))
+        .privateData(_draftKey);
+    if (!mounted || draft['values'] is! List) return;
+    if (!await confirm(
+        context,
+        tr(ref, 'Recover unfinished entry?', 'অসমাপ্ত এন্ট্রি ফেরত আনবেন?'),
+        tr(
+            ref,
+            'An encrypted draft was saved on this device. Review its values before saving.',
+            'এই ডিভাইসে একটি এনক্রিপ্টেড খসড়া আছে। সংরক্ষণের আগে মিলিয়ে নিন।'),
+        action: tr(ref, 'Recover', 'ফেরত আনুন'))) return;
+    if (!mounted) return;
+    if (draft['sourceVersion'] != widget.record?.localVersion) {
+      feedbackMessage(
+          context,
+          tr(
+              ref,
+              'The original record changed. Open its latest version before using the draft.',
+              'মূল তথ্য বদলেছে। খসড়া ব্যবহারের আগে সর্বশেষ তথ্য খুলুন।'));
+      return;
+    }
+    final v = draft['values'] as List;
+    if (v.length < 15) return;
+    setState(() {
+      _name.text = v[0];
+      _amount.text = v[1];
+      _note.text = v[2];
+      _type = v[3];
+      _space = v[4];
+      _account = v[5];
+      _destination = v[6];
+      _category = v[7];
+      _frequency = v[8];
+      _direction = v[9];
+      _spaceType = v[10];
+      _accountType = v[11];
+      _date = DateTime.parse(v[12]);
+      _receipt = v[13] == null ? null : Map<String, dynamic>.from(v[13]);
+      _billScope = v[14];
+      if (v.length > 15) _fee.text = v[15];
+      if (v.length > 16) {
+        _splits =
+            (v[16] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      if (v.length > 17) _discretionary = v[17] == true;
+      if (v.length > 18) _interval.text = v[18];
+    });
+  }
+
   Future<void> _leave() async {
     if (_busy || _leaving) return;
     _leaving = true;
@@ -80,7 +199,14 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
             'Your changes on this form have not been saved.',
             action: 'Discard');
     _leaving = false;
-    if (discard && mounted) Navigator.pop(context);
+    if (discard && mounted) {
+      _draftTimer?.cancel();
+      _saved = true;
+      await _draftWrite;
+      await (await ref.read(repositoryProvider.future))
+          .writePrivate(_draftKey, {}, notify: false);
+      if (mounted) Navigator.pop(context);
+    }
   }
 
   @override
@@ -88,13 +214,19 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
     _name.dispose();
     _amount.dispose();
     _note.dispose();
+    _fee.dispose();
+    _interval.dispose();
+    _draftTimer?.cancel();
     super.dispose();
   }
 
   void _init(FinanceSnapshot state) {
     if (_initialized) return;
     _initialized = true;
-    final r = widget.record;
+    final r = widget.record ??
+        (widget.initialData == null
+            ? null
+            : Record('', widget.kind, widget.initialData!));
     final selected = ref.read(spaceProvider);
     _space = r?.text('space') ??
         widget.initialSpace ??
@@ -119,12 +251,19 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
     _category =
         r?.text('category', expenseCategories.first) ?? expenseCategories.first;
     _frequency = r?.text('frequency', 'monthly') ?? 'monthly';
+    _interval.text = '${r?.number('intervalDays') ?? 7}';
+    if (_interval.text == '0') _interval.text = '7';
     _direction = r?.text('direction', 'borrowed') ?? 'borrowed';
     _name.text = r?.text('name') ?? '';
     _note.text = r?.text('note') ?? '';
     _receipt = r?.data['receipt'] == null
         ? null
         : Map<String, dynamic>.from(r!.data['receipt']);
+    _fee.text = editableMoney(r?.number('fee') ?? 0);
+    _splits = (r?.data['splits'] as List?)
+        ?.map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    _discretionary = r?.flag('discretionary') ?? false;
     final amountField = switch (widget.kind) {
       'account' => 'opening',
       'goal' => 'target',
@@ -132,19 +271,32 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
       _ => 'amount'
     };
     _amount.text = r == null ? '' : editableMoney(r.number(amountField));
-    _date = DateTime.tryParse(
-            r?.text(widget.kind == 'bill' ? 'due' : 'date') ?? '') ??
-        DateTime.now();
+    _date = DateTime.tryParse(r?.text(widget.kind == 'bill'
+                ? 'due'
+                : widget.kind == 'account'
+                    ? 'openingDate'
+                    : 'date') ??
+            '') ??
+        financeNow();
     _initialDraft = _draft;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _offerDraft();
+    });
   }
 
   Widget _gap() => const SizedBox(height: 18);
   Widget _select(String label, String value, Map<String, String> choices,
           ValueChanged<String> change) =>
       SearchSelectField(
-          label: label,
+          label: localText(context, label),
           value: value,
-          choices: choices,
+          choices: {
+            for (final e in choices.entries)
+              e.key: {'Space', 'Account', 'From account', 'To account'}
+                      .contains(label)
+                  ? e.value
+                  : localText(context, e.value)
+          },
           enabled: !_busy,
           onChanged: (v) => setState(() => change(v)),
           icon: label == 'Space'
@@ -253,7 +405,9 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
           data.addAll({
             'name': _name.text.trim(),
             'opening': amount,
-            'type': _accountType
+            'type': _accountType,
+            'openingDate': widget.record?.text('openingDate', dayKey(_date)) ??
+                dayKey(_date)
           });
           break;
         case 'transaction':
@@ -265,14 +419,18 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
             'category': _type == 'transfer' ? '' : _category,
             'date': dayKey(_date),
             'note': _note.text.trim(),
+            'fee': parseMoney(_fee.text, allowZero: true),
+            if (_type == 'expense' && _splits != null) 'splits': _splits,
             if (_receipt != null) 'receipt': _receipt
           });
           if (_receipt == null) data.remove('receipt');
+          if (_type != 'expense' || _splits == null) data.remove('splits');
           break;
         case 'budget':
           data.addAll({
             'category': _category,
             'amount': amount,
+            'discretionary': _discretionary,
             'month': widget.record?.text('month') ??
                 monthKey(ref.read(monthProvider))
           });
@@ -286,7 +444,10 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                 ? (widget.record?.data['anchorDay'] ?? _date.day)
                 : _date.day,
             'frequency': _frequency,
-            'paid': widget.record?.flag('paid') ?? false
+            if (_frequency == 'custom')
+              'intervalDays': int.tryParse(_interval.text) ?? 0,
+            'paid': widget.record?.flag('paid') ?? false,
+            'category': _category
           });
           break;
         case 'goal':
@@ -305,20 +466,49 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
           });
           break;
       }
+      if (widget.kind == 'transaction') {
+        final similar =
+            await repository.duplicates(data, excluding: widget.record?.id);
+        if (similar.isNotEmpty &&
+            mounted &&
+            !await confirm(
+                context,
+                tr(ref, 'Possible duplicate', 'একই লেনদেন আবার হতে পারে'),
+                tr(
+                    ref,
+                    'A transaction with the same account, date and amount already exists. Save another?',
+                    'একই অ্যাকাউন্ট, তারিখ ও টাকার লেনদেন আছে। আরেকটি রাখবেন?'),
+                action: tr(ref, 'Save another', 'আরেকটি রাখুন'))) return;
+      }
       await repository.save(widget.kind, data,
           id: widget.record?.id,
           expectedVersion: widget.record?.localVersion,
           billEditScope: _billScope);
       if (widget.kind == 'bill') await repository.ensureBillOccurrences();
+      _saved = true;
+      _draftTimer?.cancel();
+      await _draftWrite;
+      await repository.writePrivate(_draftKey, {}, notify: false);
       unawaited(HapticFeedback.lightImpact());
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context);
-        feedbackMessage(context, 'Saved on this device');
+        messenger.showSnackBar(SnackBar(
+            duration: const Duration(seconds: 2),
+            backgroundColor: forest,
+            content: Row(children: [
+              const Icon(Icons.check_circle_outline,
+                  color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: LText(
+                      '${widget.kind[0].toUpperCase()}${widget.kind.substring(1)} saved on this device'))
+            ])));
       }
     } catch (e) {
       if (mounted) {
         setState(() => _error = e is FormatException
-            ? e.message
+            ? localText(context, e.message)
             : 'Could not save. Your existing records are safe.');
       }
     } finally {
@@ -336,14 +526,79 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
         },
         child: Scaffold(
             appBar: AppBar(
-                title: Text(
+                title: LText(
                     '${widget.record == null ? 'Add' : 'Edit'} ${widget.kind}')),
+            bottomNavigationBar: async.valueOrNull == null
+                ? null
+                : AnimatedPadding(
+                    duration: Duration(
+                        milliseconds:
+                            MediaQuery.disableAnimationsOf(context) ? 0 : 160),
+                    padding: EdgeInsets.only(
+                        bottom: MediaQuery.viewInsetsOf(context).bottom),
+                    child: SafeArea(
+                        top: false,
+                        child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                            child: Center(
+                                heightFactor: 1,
+                                child: ConstrainedBox(
+                                    constraints:
+                                        const BoxConstraints(maxWidth: 560),
+                                    child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (_error != null)
+                                            Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 10),
+                                                child: Semantics(
+                                                    liveRegion: true,
+                                                    child: LText(_error!,
+                                                        style: TextStyle(
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .colorScheme
+                                                                .error)))),
+                                          FilledButton.icon(
+                                              onPressed: _busy
+                                                  ? null
+                                                  : () =>
+                                                      _save(async.valueOrNull!),
+                                              icon: _busy
+                                                  ? const SizedBox(
+                                                      width: 18,
+                                                      height: 18,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                              color:
+                                                                  Colors.white))
+                                                  : const Icon(
+                                                      Icons.check_rounded),
+                                              label: LText(_busy
+                                                  ? 'Saving…'
+                                                  : 'Save ${widget.kind}')),
+                                          const SizedBox(height: 6),
+                                          LText(
+                                              tr(
+                                                  ref,
+                                                  'Private · Saved on this device',
+                                                  'ব্যক্তিগত · এই ডিভাইসে সংরক্ষিত'),
+                                              textAlign: TextAlign.center,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall),
+                                        ])))))),
             body: async.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const VaultSkeleton(),
                 error: (e, s) =>
-                    const Center(child: Text('Could not open your records.')),
+                    const Center(child: LText('Could not open your records.')),
                 data: (state) {
                   _init(state);
+                  _queueDraft();
                   final tx = widget.kind == 'transaction';
                   final categories = {
                     ...(_type == 'income' && tx
@@ -378,13 +633,13 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                           segments: const [
                                             ButtonSegment(
                                                 value: 'expense',
-                                                label: Text('Expense')),
+                                                label: LText('Expense')),
                                             ButtonSegment(
                                                 value: 'income',
-                                                label: Text('Income')),
+                                                label: LText('Income')),
                                             ButtonSegment(
                                                 value: 'transfer',
-                                                label: Text('Transfer'))
+                                                label: LText('Transfer'))
                                           ],
                                           selected: {
                                             _type
@@ -400,7 +655,7 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                     ],
                                     if (!{'space', 'category'}
                                         .contains(widget.kind)) ...[
-                                      Text('AMOUNT · BDT',
+                                      LText('AMOUNT · BDT',
                                           style: Theme.of(context)
                                               .textTheme
                                               .labelMedium
@@ -415,9 +670,10 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                           style: Theme.of(context)
                                               .textTheme
                                               .headlineLarge,
-                                          decoration: const InputDecoration(
+                                          decoration: InputDecoration(
                                               prefixText: '৳ ',
-                                              hintText: '0.00'),
+                                              hintText:
+                                                  localText(context, '0.00')),
                                           validator: (v) {
                                             try {
                                               parseMoney(v ?? '',
@@ -425,7 +681,8 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                                       widget.kind == 'account');
                                               return null;
                                             } on FormatException catch (e) {
-                                              return e.message;
+                                              return localText(
+                                                  context, e.message);
                                             }
                                           }),
                                       _gap(),
@@ -435,14 +692,18 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                           controller: _name,
                                           maxLength: 100,
                                           decoration: InputDecoration(
-                                              labelText: switch (widget.kind) {
-                                            'space' => 'Space name',
-                                            'loan' => 'Person or lender',
-                                            _ => 'Name'
-                                          }),
+                                              labelText: localText(
+                                                  context,
+                                                  switch (widget.kind) {
+                                                    'space' => 'Space name',
+                                                    'loan' =>
+                                                      'Person or lender',
+                                                    _ => 'Name'
+                                                  })),
                                           validator: (v) =>
                                               v == null || v.trim().isEmpty
-                                                  ? 'Enter a name'
+                                                  ? localText(
+                                                      context, 'Enter a name')
                                                   : null),
                                       _gap(),
                                     ],
@@ -456,7 +717,7 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                           },
                                           (v) => _spaceType = v),
                                       _gap(),
-                                      const Text(
+                                      const LText(
                                           'Each space keeps its own accounts, budgets, bills and reports. Transfers between spaces stay visible on both sides.'),
                                       _gap(),
                                     ],
@@ -535,6 +796,7 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                       ],
                                     ],
                                     if (widget.kind == 'budget' ||
+                                        widget.kind == 'bill' ||
                                         (tx && _type != 'transfer')) ...[
                                       _select(
                                           'Category',
@@ -543,7 +805,119 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                           (v) => _category = v),
                                       _gap(),
                                     ],
-                                    if (tx || widget.kind == 'bill') ...[
+                                    if (widget.kind == 'budget')
+                                      SwitchListTile(
+                                          contentPadding: EdgeInsets.zero,
+                                          title: LText(tr(
+                                              ref,
+                                              'Discretionary spending',
+                                              'ঐচ্ছিক খরচ')),
+                                          subtitle: LText(tr(
+                                              ref,
+                                              'Include in daily spending limit',
+                                              'দৈনিক খরচের সীমায় ধরুন')),
+                                          value: _discretionary,
+                                          onChanged: (v) => setState(
+                                              () => _discretionary = v)),
+                                    if (tx) ...[
+                                      TextFormField(
+                                          controller: _fee,
+                                          keyboardType: const TextInputType
+                                              .numberWithOptions(decimal: true),
+                                          decoration: InputDecoration(
+                                              labelText: tr(
+                                                  ref,
+                                                  'Fee / charge (BDT)',
+                                                  'ফি / চার্জ (টাকা)')),
+                                          validator: (v) {
+                                            try {
+                                              parseMoney(v ?? '',
+                                                  allowZero: true);
+                                              return null;
+                                            } on FormatException catch (e) {
+                                              return localText(
+                                                  context, e.message);
+                                            }
+                                          }),
+                                      if (_type == 'expense')
+                                        Wrap(spacing: 8, children: [
+                                          TextButton.icon(
+                                              icon:
+                                                  const Icon(Icons.call_split),
+                                              label: LText(tr(
+                                                  ref,
+                                                  _splits == null
+                                                      ? 'Split across categories'
+                                                      : 'Edit split',
+                                                  _splits == null
+                                                      ? 'ক্যাটাগরি অনুযায়ী ভাগ করুন'
+                                                      : 'ভাগ পরিবর্তন করুন')),
+                                              onPressed: () async {
+                                                try {
+                                                  final splits =
+                                                      await editSplitAllocations(
+                                                          context,
+                                                          ref,
+                                                          state,
+                                                          _space,
+                                                          parseMoney(
+                                                              _amount.text),
+                                                          existing: _splits);
+                                                  if (splits != null &&
+                                                      mounted) {
+                                                    setState(
+                                                        () => _splits = splits);
+                                                  }
+                                                } catch (e) {
+                                                  if (context.mounted) {
+                                                    feedbackMessage(context, e);
+                                                  }
+                                                }
+                                              }),
+                                          if (_splits != null)
+                                            TextButton(
+                                                onPressed: () => setState(
+                                                    () => _splits = null),
+                                                child: LText(tr(
+                                                    ref,
+                                                    'Remove split',
+                                                    'ভাগ বাতিল')))
+                                        ]),
+                                      ValueListenableBuilder<TextEditingValue>(
+                                          valueListenable: _amount,
+                                          builder: (context, _, __) =>
+                                              ValueListenableBuilder<
+                                                      TextEditingValue>(
+                                                  valueListenable: _fee,
+                                                  builder: (context, _, __) {
+                                                    try {
+                                                      final amount = parseMoney(
+                                                              _amount.text),
+                                                          fee = parseMoney(
+                                                              _fee.text,
+                                                              allowZero: true);
+                                                      final balance = state.find(
+                                                                  _account) ==
+                                                              null
+                                                          ? 0
+                                                          : state.balance(state
+                                                              .find(_account)!);
+                                                      return Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  vertical: 12),
+                                                          child: LText(
+                                                              '${tr(ref, 'Account balance after entry', 'এন্ট্রির পরে অ্যাকাউন্ট ব্যালেন্স')}: ${ref.watch(privacyProvider) ? '••••' : money(balance + (_type == 'income' ? amount : -amount) - fee)}'));
+                                                    } catch (_) {
+                                                      return const SizedBox
+                                                          .shrink();
+                                                    }
+                                                  })),
+                                    ],
+                                    if (tx ||
+                                        widget.kind == 'bill' ||
+                                        widget.kind == 'account') ...[
                                       ListTile(
                                           shape: RoundedRectangleBorder(
                                               borderRadius:
@@ -553,8 +927,8 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                               .surfaceContainerHighest,
                                           leading: const Icon(
                                               Icons.calendar_today_outlined),
-                                          title: Text(dayKey(_date)),
-                                          subtitle: Text(widget.kind == 'bill'
+                                          title: LText(dayKey(_date)),
+                                          subtitle: LText(widget.kind == 'bill'
                                               ? 'Due date'
                                               : 'Transaction date'),
                                           onTap: _pickDate),
@@ -562,7 +936,7 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                     ],
                                     if (tx &&
                                         dayKey(_date).compareTo(
-                                                dayKey(DateTime.now())) >
+                                                dayKey(financeNow())) >
                                             0)
                                       Padding(
                                           padding:
@@ -575,15 +949,16 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                                     size: 18),
                                                 const SizedBox(width: 8),
                                                 Expanded(
-                                                    child: Text(
+                                                    child: LText(
                                                         'Scheduled for ${dayKey(_date)}. Current balances and actual spending will change on that date.'))
                                               ])),
                                     if (tx)
                                       TextFormField(
                                           controller: _note,
                                           maxLength: 500,
-                                          decoration: const InputDecoration(
-                                              labelText: 'Note (optional)'),
+                                          decoration: InputDecoration(
+                                              labelText: localText(
+                                                  context, 'Note (optional)')),
                                           maxLines: 2),
                                     if (tx) ...[
                                       _gap(),
@@ -597,7 +972,7 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                                 height: 180,
                                                 fit: BoxFit.contain,
                                                 errorBuilder: (_, __, ___) =>
-                                                    const Text(
+                                                    const LText(
                                                         'Receipt preview unavailable'))),
                                       Row(children: [
                                         Expanded(
@@ -606,12 +981,13 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                                     _busy ? null : _pickReceipt,
                                                 icon: const Icon(
                                                     Icons.attach_file),
-                                                label: Text(_receipt == null
+                                                label: LText(_receipt == null
                                                     ? 'Attach receipt'
                                                     : 'Replace receipt'))),
                                         if (_receipt != null)
                                           IconButton(
-                                              tooltip: 'Remove receipt',
+                                              tooltip: localText(
+                                                  context, 'Remove receipt'),
                                               onPressed: () => setState(
                                                   () => _receipt = null),
                                               icon: const Icon(Icons.close))
@@ -639,9 +1015,31 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                           _frequency,
                                           {
                                             'once': 'One time',
-                                            'monthly': 'Monthly'
+                                            'monthly': 'Monthly',
+                                            'weekly': 'Weekly',
+                                            'yearly': 'Yearly',
+                                            'custom': 'Every N days'
                                           },
                                           (v) => _frequency = v),
+                                    if (widget.kind == 'bill' &&
+                                        _frequency == 'custom')
+                                      TextFormField(
+                                          controller: _interval,
+                                          keyboardType: TextInputType.number,
+                                          decoration: InputDecoration(
+                                              labelText: tr(
+                                                  ref,
+                                                  'Repeat every (days)',
+                                                  'কত দিন পরপর')),
+                                          validator: (v) {
+                                            final days = int.tryParse(v ?? '');
+                                            return days == null ||
+                                                    days < 1 ||
+                                                    days > 3650
+                                                ? tr(ref, 'Choose 1–3650 days',
+                                                    '১–৩৬৫০ দিন দিন')
+                                                : null;
+                                          }),
                                     if (widget.kind == 'loan') ...[
                                       _select(
                                           'Direction',
@@ -652,44 +1050,16 @@ class _RecordEditorState extends ConsumerState<RecordEditor> {
                                           },
                                           (v) => _direction = v),
                                       _gap(),
-                                      const Text(
-                                          'Track an existing, interest-free balance. Adding this loan does not move money between accounts. Repayments will create transactions.'),
+                                      const LText(
+                                          'Track an existing loan balance. Adding a loan does not move account money. Add interest and due dates through an installment schedule.'),
                                     ],
                                     if (widget.kind == 'goal')
-                                      const Text(
+                                      const LText(
                                           'A goal earmarks your existing money. Updating progress does not create income or an expense.'),
                                     if (widget.kind == 'account')
-                                      const Text(
+                                      const LText(
                                           'Opening balance is separate from your income. Use transactions for future changes.'),
-                                    if (_error != null)
-                                      Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 18),
-                                          child: Text(_error!,
-                                              style: TextStyle(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .error))),
-                                    const SizedBox(height: 28),
-                                    FilledButton.icon(
-                                        onPressed:
-                                            _busy ? null : () => _save(state),
-                                        icon: _busy
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                        strokeWidth: 2))
-                                            : const Icon(Icons.check),
-                                        label: Text(_busy
-                                            ? 'Saving…'
-                                            : 'Save ${widget.kind}')),
-                                    const SizedBox(height: 12),
-                                    const Center(
-                                        child: Text(
-                                            'Saved privately on your device',
-                                            style: TextStyle(fontSize: 12))),
+                                    const SizedBox(height: 24),
                                   ]))));
                 })));
   }
@@ -705,7 +1075,9 @@ Future<String?> chooseAccount(
           .of('account')
           .where((r) => r.text('space') == space)
           .map((r) => SelectOption(r.id, r.text('name'),
-              subtitle: money(state.balance(r)),
+              subtitle: container.read(privacyProvider)
+                  ? '••••'
+                  : money(state.balance(r)),
               icon: Icons.account_balance_wallet_outlined))
           .toList());
   if (selected != createSelection) return selected;
@@ -729,7 +1101,7 @@ Future<int?> askAmount(BuildContext context, String title,
   final value = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
-              title: Text(title),
+              title: LText(title),
               content: Form(
                   key: form,
                   child: TextFormField(
@@ -743,13 +1115,13 @@ Future<int?> askAmount(BuildContext context, String title,
                           parseMoney(v ?? '', allowZero: true);
                           return null;
                         } on FormatException catch (e) {
-                          return e.message;
+                          return localText(context, e.message);
                         }
                       })),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel')),
+                    child: const LText('Cancel')),
                 FilledButton(
                     onPressed: () {
                       if (form.currentState!.validate()) {
@@ -757,7 +1129,7 @@ Future<int?> askAmount(BuildContext context, String title,
                             parseMoney(controller.text, allowZero: true));
                       }
                     },
-                    child: const Text('Save'))
+                    child: const LText('Save'))
               ]));
   // Route transitions may still reference the controller until the next frame.
   WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());

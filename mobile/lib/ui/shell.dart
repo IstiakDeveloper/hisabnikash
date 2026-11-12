@@ -1,3 +1,4 @@
+import 'localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -10,12 +11,24 @@ import 'insights.dart';
 import 'settings.dart';
 import 'editors.dart';
 import 'design.dart';
+import 'brand.dart';
 import 'spaces.dart';
+import 'finance_center.dart';
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final response = ref.watch(notificationResponseProvider);
+    if (response != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!context.mounted ||
+            ref.read(notificationResponseProvider) != response) return;
+        ref.read(notificationResponseProvider.notifier).state = null;
+        ref.read(remindersProvider).launchResponse = null;
+        await handleFinanceNotification(context, ref, response);
+      });
+    }
     final async = ref.watch(snapshotProvider),
         tab = ref.watch(navigationProvider);
     final month = ref.watch(monthProvider), space = ref.watch(spaceProvider);
@@ -66,26 +79,37 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-          toolbarHeight: 80,
+          toolbarHeight:
+              MediaQuery.textScalerOf(context).scale(56).clamp(76, 120),
           titleSpacing: 24,
           title:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('HISABNIKASH',
+            LText('HISABNIKASH',
                 style: TextStyle(
                     color: Theme.of(context).colorScheme.primary,
                     fontSize: 10,
                     letterSpacing: 2.4,
                     fontWeight: FontWeight.w700)),
             const SizedBox(height: 5),
-            Text(titles[tab], style: Theme.of(context).textTheme.headlineMedium)
+            LText(titles[tab],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineMedium
+                    ?.copyWith(fontSize: 25))
           ]),
           actions: [
             IconButton(
-                tooltip: 'Manage spaces',
+                tooltip: tr(ref, 'Finance center', 'হিসাব কেন্দ্র'),
+                onPressed: () => openFinanceCenter(context),
+                icon: const Icon(Icons.notifications_outlined)),
+            IconButton(
+                tooltip: localText(context, 'Manage spaces'),
                 onPressed: () => openSpaces(context),
                 icon: const Icon(Icons.workspaces_outline)),
             IconButton(
-                tooltip: 'Hide balances',
+                tooltip: localText(context, 'Hide balances'),
                 onPressed: () => ref.read(privacyProvider.notifier).state =
                     !ref.read(privacyProvider),
                 icon: Icon(ref.watch(privacyProvider)
@@ -103,19 +127,19 @@ class AppShell extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
                   child: FloatingActionButton.small(
                       heroTag: 'desktop-add',
-                      tooltip: 'Add transaction',
+                      tooltip: localText(context, 'Add transaction'),
                       onPressed: addTransaction,
                       child: const Icon(Icons.add))),
               destinations: List.generate(
                   5,
                   (i) => NavigationRailDestination(
-                      icon: Icon(icons[i]), label: Text(labels[i])))),
+                      icon: Icon(icons[i]), label: LText(labels[i])))),
           VerticalDivider(
               width: 1, color: Theme.of(context).dividerColor.withOpacity(.2))
         ],
         Expanded(
             child: async.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const VaultSkeleton(),
                 error: (_, __) => Center(
                     child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -124,7 +148,7 @@ class AppShell extends ConsumerWidget {
                             action: TextButton(
                                 onPressed: () =>
                                     ref.invalidate(snapshotProvider),
-                                child: const Text('Try again'))))),
+                                child: const LText('Try again'))))),
                 data: (state) => Center(
                     child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 1000),
@@ -133,27 +157,31 @@ class AppShell extends ConsumerWidget {
                             _ContextBar(
                                 state: state, space: space, month: month),
                           Expanded(
-                              child: switch (tab) {
-                            0 =>
-                              Dashboard(state, onActivity: () => navigate(1)),
-                            1 => ActivityScreen(state),
-                            2 => PlansScreen(state),
-                            3 => InsightsScreen(state),
-                            _ => SettingsScreen(state),
-                          }),
+                              child: ContentEntrance(
+                                  key: ValueKey(tab),
+                                  child: switch (tab) {
+                                    0 => Dashboard(state,
+                                        onActivity: () => navigate(1)),
+                                    1 => ActivityScreen(state),
+                                    2 => PlansScreen(state),
+                                    3 => InsightsScreen(state),
+                                    _ => SettingsScreen(state),
+                                  })),
                         ]))))),
       ]),
-      floatingActionButton: tab < 2
+      floatingActionButton: tab == 1
           ? FloatingActionButton.extended(
               onPressed: addTransaction,
               backgroundColor: forest,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
-              label: Text(tr(ref, 'Add transaction', 'লেনদেন যোগ করুন')))
+              label: LText(tr(ref, 'Add transaction', 'লেনদেন যোগ করুন')))
           : null,
       bottomNavigationBar: desktop
           ? null
           : NavigationBar(
+              height:
+                  MediaQuery.textScalerOf(context).scale(12) > 15 ? 100 : 76,
               selectedIndex: tab,
               onDestinationSelected: navigate,
               destinations: List.generate(
@@ -197,32 +225,33 @@ class _ContextBar extends ConsumerWidget {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                        Text(
+                        LText(
                             current?.text('name') ??
                                 tr(ref, 'All spaces', 'সব হিসাব'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 14)),
-                        Text(
-                            space == 'all'
-                                ? 'Combined overview'
-                                : current?.text('type') == 'business'
-                                    ? 'Business space'
-                                    : 'Personal space',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(fontSize: 11))
+                        if (MediaQuery.sizeOf(context).width >= 600)
+                          LText(
+                              space == 'all'
+                                  ? 'Combined overview'
+                                  : current?.text('type') == 'business'
+                                      ? 'Business space'
+                                      : 'Personal space',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(fontSize: 11))
                       ])),
                   const SizedBox(width: 6),
                   const Icon(Icons.expand_more, size: 18),
                 ]))));
     Widget months() => Row(mainAxisSize: MainAxisSize.min, children: [
           IconButton(
-              tooltip: 'Previous month',
+              tooltip: localText(context, 'Previous month'),
               onPressed: () => ref.read(monthProvider.notifier).state =
                   DateTime(month.year, month.month - 1),
               icon: const Icon(Icons.chevron_left, size: 20)),
@@ -233,24 +262,26 @@ class _ContextBar extends ConsumerWidget {
                     initialDate: month,
                     firstDate: DateTime(2000),
                     lastDate: DateTime(2100),
-                    helpText: 'Choose a month');
+                    helpText: localText(context, 'Choose a month'));
                 if (picked != null) {
                   ref.read(monthProvider.notifier).state =
                       DateTime(picked.year, picked.month);
                 }
               },
-              child: Text(DateFormat('MMM yyyy').format(month),
+              child: LText(
+                  DateFormat('MMM yyyy', ref.watch(languageProvider))
+                      .format(month),
                   style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.w600))),
           IconButton(
-              tooltip: 'Next month',
+              tooltip: localText(context, 'Next month'),
               onPressed: () => ref.read(monthProvider.notifier).state =
                   DateTime(month.year, month.month + 1),
               icon: const Icon(Icons.chevron_right, size: 20)),
         ]);
     return Container(
-        margin: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        margin: const EdgeInsets.fromLTRB(20, 4, 20, 16),
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
             color: Theme.of(context).cardTheme.color,
@@ -258,7 +289,8 @@ class _ContextBar extends ConsumerWidget {
             border: Border.all(
                 color: Theme.of(context).dividerColor.withOpacity(.12))),
         child: LayoutBuilder(
-            builder: (context, constraints) => constraints.maxWidth < 330
+            builder: (context, constraints) => constraints.maxWidth < 330 ||
+                    MediaQuery.textScalerOf(context).scale(12) > 15
                 ? Column(children: [
                     Row(children: [spaces()]),
                     const Divider(height: 1),

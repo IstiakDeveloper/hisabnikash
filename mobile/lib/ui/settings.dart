@@ -1,3 +1,4 @@
+import 'localization.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
@@ -10,10 +11,13 @@ import '../core/models.dart';
 import '../core/money.dart';
 import '../core/vault.dart';
 import '../core/reports.dart';
+import '../core/repository.dart';
 import 'design.dart';
+import 'brand.dart';
 import 'editors.dart';
 import 'spaces.dart';
 import 'statement.dart';
+import 'finance_center.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen(this.state, {super.key});
@@ -72,35 +76,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final result = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
-                title: Text(creating ? 'Protect your backup' : 'Unlock backup'),
+                title:
+                    LText(creating ? 'Protect your backup' : 'Unlock backup'),
                 content: Form(
                     key: form,
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text(creating
+                      LText(creating
                           ? 'Use at least 12 characters. Keep this password safe; it cannot be recovered.'
                           : 'Enter the password used when this backup was created.'),
                       const SizedBox(height: 18),
                       TextFormField(
                           controller: controller,
                           obscureText: true,
-                          decoration: const InputDecoration(
-                              labelText: 'Backup password'),
+                          decoration: InputDecoration(
+                              labelText: localText(context, 'Backup password')),
                           validator: (v) =>
                               v == null || v.length < (creating ? 12 : 1)
-                                  ? 'Enter a valid password'
+                                  ? localText(context, 'Enter a valid password')
                                   : null),
                     ])),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel')),
+                      child: const LText('Cancel')),
                   FilledButton(
                       onPressed: () {
                         if (form.currentState!.validate()) {
                           Navigator.pop(context, controller.text);
                         }
                       },
-                      child: const Text('Continue'))
+                      child: const LText('Continue'))
                 ]));
     WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
     return result;
@@ -127,8 +132,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final repository = await ref.read(repositoryProvider.future);
     final content =
         await BackupCodec.encode(await repository.exportData(), password);
-    await _share('hisabnikash-${DateTime.now().millisecondsSinceEpoch}.hnb',
+    await _share('hisabnikash-${financeNow().millisecondsSinceEpoch}.hnb',
         content, 'application/octet-stream');
+    await repository.setSetting(
+        'lastBackupExport', financeNow().toUtc().toIso8601String());
     return true;
   }
 
@@ -169,17 +176,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _toggleLock(bool enabled) async {
+    final enableReason =
+        localText(context, 'Enable protection for your financial records');
+    final disableReason =
+        localText(context, 'Confirm before disabling app lock');
     if (enabled) {
       final auth = LocalAuthentication();
       if (!await auth.isDeviceSupported() ||
-          !await auth.authenticate(
-              localizedReason:
-                  'Enable protection for your financial records')) {
+          !await auth.authenticate(localizedReason: enableReason)) {
         return;
       }
     } else {
       final success = await LocalAuthentication()
-          .authenticate(localizedReason: 'Confirm before disabling app lock');
+          .authenticate(localizedReason: disableReason);
       if (!success) return;
     }
     await (await ref.read(repositoryProvider.future))
@@ -196,18 +205,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                   color: mint, borderRadius: BorderRadius.circular(18)),
-              child: const Icon(Icons.spa_outlined, color: forest, size: 30)),
+              child: const BrandMark(size: 42)),
           const SizedBox(width: 16),
           Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Text(
+                LText(
                     tr(ref, 'Your money, your control.',
                         'আপনার টাকা, আপনার নিয়ন্ত্রণ।'),
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 6),
-                const Text('Private vault · BDT',
+                const LText('Private vault · BDT',
                     style: TextStyle(fontSize: 12)),
               ]))
         ])),
@@ -226,7 +235,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => AccountStatement(r.id))),
-                  subtitle: Text(
+                  subtitle: LText(
                       widget.state.find(r.text('space'))?.text('name') ?? ''),
                   trailing: PopupMenuButton<String>(
                       onSelected: (v) async {
@@ -245,19 +254,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                       itemBuilder: (_) => [
                             const PopupMenuItem(
-                                value: 'edit', child: Text('Edit')),
+                                value: 'edit', child: LText('Edit')),
                             const PopupMenuItem(
-                                value: 'delete', child: Text('Delete'))
+                                value: 'delete', child: LText('Delete'))
                           ]))),
               ListTile(
                   leading: const Icon(Icons.add),
-                  title: const Text('Add account'),
+                  title: const LText('Add account'),
                   onTap: () => openEditor(context, 'account')),
               const Divider(),
               ListTile(
                   leading: const Icon(Icons.workspaces_outline),
-                  title: const Text('Manage spaces'),
-                  subtitle: Text(
+                  title: const LText('Manage spaces'),
+                  subtitle: LText(
                       '${widget.state.of('space').length} personal and business spaces'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => openSpaces(context)),
@@ -268,16 +277,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ...widget.state.of('category').map((r) => ListTile(
                   leading: const Icon(Icons.category_outlined),
                   title: Text(r.text('name')),
-                  subtitle: Text(
+                  subtitle: LText(
                       '${r.text('type')} · ${widget.state.find(r.text('space'))?.text('name')}'),
                   onTap: () => openEditor(context, 'category', record: r))),
               ListTile(
                   leading: const Icon(Icons.playlist_add),
-                  title: const Text('Add custom category'),
+                  title: const LText('Add custom category'),
                   onTap: () => openEditor(context, 'category')),
               ListTile(
                   leading: const Icon(Icons.add_business_outlined),
-                  title: const Text('Add space'),
+                  title: const LText('Add space'),
                   onTap: () => openEditor(context, 'space')),
             ])),
         SectionTitle(tr(ref, 'Make it yours', 'আপনার পছন্দ')),
@@ -285,7 +294,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             padding: 8,
             child: Column(children: [
               SwitchListTile(
-                  title: Text(tr(ref, 'Dark appearance', 'ডার্ক থিম')),
+                  title: LText(tr(ref, 'Dark appearance', 'ডার্ক থিম')),
                   secondary: const Icon(Icons.dark_mode_outlined),
                   value: ref.watch(darkProvider),
                   onChanged: (value) => _run(() async {
@@ -294,8 +303,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             .setSetting('dark', '$value');
                       })),
               SwitchListTile(
-                  title: const Text('বাংলা'),
-                  subtitle: const Text('Navigation and core labels'),
+                  title: const LText('বাংলা'),
+                  subtitle: const LText('Navigation and core labels'),
                   secondary: const Icon(Icons.language),
                   value: ref.watch(languageProvider) == 'bn',
                   onChanged: (value) => _run(() async {
@@ -305,8 +314,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             .setSetting('language', value ? 'bn' : 'en');
                       })),
               SwitchListTile(
-                  title: const Text('Device authentication'),
-                  subtitle: const Text(kIsWeb
+                  title: const LText('Device authentication'),
+                  subtitle: const LText(kIsWeb
                       ? 'Available in Android and iOS apps'
                       : 'Lock when the app enters the background'),
                   secondary: const Icon(Icons.fingerprint),
@@ -314,11 +323,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onChanged: _busy || kIsWeb
                       ? null
                       : (value) => _run(() => _toggleLock(value))),
+              ListTile(
+                  leading: const Icon(Icons.notifications_active_outlined),
+                  title: LText(tr(ref, 'Smart reminders and finance tools',
+                      'স্মার্ট রিমাইন্ডার ও হিসাবের সুবিধা')),
+                  subtitle: LText(tr(
+                      ref,
+                      'Daily review, budgets, bills, business and recovery',
+                      'দৈনিক হিসাব, বাজেট, বিল, ব্যবসা ও তথ্য ফেরত')),
+                  onTap: () => openFinanceCenter(context, tab: 4)),
               SwitchListTile(
-                  title: const Text('Private bill reminders'),
-                  subtitle: const Text(kIsWeb
+                  title: const LText('Private bill reminders'),
+                  subtitle: const LText(kIsWeb
                       ? 'Available in Android and iOS apps'
-                      : 'One day before, 9 AM · Asia/Dhaka'),
+                      : '3 days, 1 day and due day · 9 AM'),
                   secondary: const Icon(Icons.notifications_outlined),
                   value: _reminders,
                   onChanged: _busy || kIsWeb
@@ -331,11 +349,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             }
                             await (await ref.read(repositoryProvider.future))
                                 .setSetting('reminders', '$value');
-                            if (value) {
-                              await service.refresh(widget.state);
-                            } else {
-                              await service.cancel();
-                            }
+                            final repository =
+                                await ref.read(repositoryProvider.future);
+                            final prefs =
+                                await repository.privateData('notifications');
+                            await repository.writePrivate(
+                                'notifications', {...prefs, 'bills': value});
+                            await service.reconcile(repository);
                           })),
             ])),
         SectionTitle(tr(ref, 'Sync & recovery', 'সিঙ্ক ও ব্যাকআপ')),
@@ -344,10 +364,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(children: [
               ListTile(
                   leading: const Icon(Icons.cloud_sync_outlined),
-                  title: Text(_cloud == null
+                  title: LText(_cloud == null
                       ? 'Enable optional cloud sync'
                       : 'Sync connected'),
-                  subtitle: Text(_cloud == null
+                  subtitle: LText(_cloud == null
                       ? 'Your app works fully without an account'
                       : '${ref.watch(syncStatusProvider).valueOrNull ?? 'Ready'}\n${widget.state.pending} queued · Last attempt: ${_lastSync ?? 'not yet'}'),
                   trailing: const Icon(Icons.chevron_right),
@@ -380,8 +400,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (_cloud != null)
                 ListTile(
                     leading: const Icon(Icons.cloud_off_outlined),
-                    title: const Text('Disconnect sync'),
-                    subtitle: const Text(
+                    title: const LText('Disconnect sync'),
+                    subtitle: const LText(
                         'Keeps local data. Offline token revocation retries on next connect.'),
                     onTap: _busy
                         ? null
@@ -397,25 +417,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (widget.state.conflicts > 0)
                 ListTile(
                     leading: const Icon(Icons.merge_type, color: rust),
-                    title:
-                        Text('${widget.state.conflicts} conflicts need review'),
+                    title: LText(
+                        '${widget.state.conflicts} conflicts need review'),
                     onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                             builder: (_) => const ConflictsScreen()))),
               ListTile(
                   leading: const Icon(Icons.lock_outline),
-                  title: const Text('Export encrypted backup'),
-                  subtitle: const Text('Password-protected .hnb file'),
+                  title: const LText('Export encrypted backup'),
+                  subtitle: const LText('Password-protected .hnb file'),
                   onTap: _busy ? null : () => _run(_backup)),
               ListTile(
                   leading: const Icon(Icons.restore),
-                  title: const Text('Restore backup'),
+                  title: const LText('Restore backup'),
                   onTap: _busy ? null : () => _run(_restore)),
               ListTile(
                   leading: const Icon(Icons.table_chart_outlined),
-                  title: const Text('Export transactions as CSV'),
-                  subtitle: const Text(
+                  title: const LText('Export transactions as CSV'),
+                  subtitle: const LText(
                       'Readable file: contains private financial information'),
                   onTap: _busy
                       ? null
@@ -429,22 +449,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           })),
               ListTile(
                   leading: const Icon(Icons.picture_as_pdf_outlined),
-                  title: const Text('Export monthly PDF report'),
-                  subtitle: const Text('Uses the selected space and month'),
+                  title: const LText('Export monthly PDF report'),
+                  subtitle: const LText('Uses the selected space and month'),
                   onTap: _busy
                       ? null
                       : () => _run(() async {
                             final bytes = await monthlyReport(
                                 widget.state,
                                 ref.read(spaceProvider),
-                                ref.read(monthProvider));
+                                ref.read(monthProvider),
+                                language: ref.read(languageProvider));
                             await _shareBytes('hisabnikash-monthly.pdf', bytes,
                                 'application/pdf');
                           })),
             ])),
         const SizedBox(height: 28),
-        const Text(
-            'HISABNIKASH · 0.1.0\nBuilt for a little more peace of mind.',
+        const LText(
+            'HISABNIKASH · 0.3.1\nBuilt for a little more peace of mind.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, height: 1.8)),
       ]);
@@ -502,48 +523,51 @@ class _SyncConnectScreenState extends ConsumerState<SyncConnectScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const Text('Connect sync')),
+      appBar: AppBar(title: const LText('Connect sync')),
       body: Center(
           child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 600),
               child: ListView(padding: const EdgeInsets.all(24), children: [
                 const Icon(Icons.cloud_sync_outlined, size: 54, color: forest),
                 const SizedBox(height: 24),
-                Text('Your money, in step.',
+                LText('Your money, in step.',
                     style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 12),
-                const Text(
+                const LText(
                     'Connect to your HisabNikash sync server using an existing account. This device will upload its local records and download your other device changes. Conflicting edits require your review.'),
                 const SizedBox(height: 28),
                 TextField(
                     controller: _url,
                     keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(
-                        labelText: 'HTTPS server',
-                        hintText: 'https://sync.example.com')),
+                    decoration: InputDecoration(
+                        labelText: localText(context, 'HTTPS server'),
+                        hintText:
+                            localText(context, 'https://sync.example.com'))),
                 const SizedBox(height: 16),
                 TextField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.username],
-                    decoration: const InputDecoration(labelText: 'Email')),
+                    decoration: InputDecoration(
+                        labelText: localText(context, 'Email'))),
                 const SizedBox(height: 16),
                 TextField(
                     controller: _password,
                     obscureText: true,
                     autofillHints: const [AutofillHints.password],
-                    decoration: const InputDecoration(labelText: 'Password')),
+                    decoration: InputDecoration(
+                        labelText: localText(context, 'Password'))),
                 if (_error != null)
                   Padding(
                       padding: const EdgeInsets.only(top: 20),
                       child:
-                          Text(_error!, style: const TextStyle(color: rust))),
+                          LText(_error!, style: const TextStyle(color: rust))),
                 const SizedBox(height: 24),
                 FilledButton(
                     onPressed: _busy ? null : _connect,
-                    child: Text(_busy ? 'Connecting…' : 'Connect and sync')),
+                    child: LText(_busy ? 'Connecting…' : 'Connect and sync')),
                 const SizedBox(height: 20),
-                const Text(
+                const LText(
                     'Sync stores encrypted financial payloads on your server. It is not end-to-end encrypted. Keep a separate encrypted backup.',
                     style: TextStyle(fontSize: 12)),
               ]))));
@@ -552,7 +576,7 @@ class _SyncConnectScreenState extends ConsumerState<SyncConnectScreen> {
 class ConflictsScreen extends ConsumerWidget {
   const ConflictsScreen({super.key});
   Widget summary(Json? data, FinanceSnapshot? state) {
-    if (data == null) return const Text('Deleted');
+    if (data == null) return const LText('Deleted');
     final labels = {
       'name': 'Name',
       'category': 'Category',
@@ -567,7 +591,7 @@ class ConflictsScreen extends ConsumerWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       for (final field in labels.entries)
         if (data[field.key] is String && (data[field.key] as String).isNotEmpty)
-          Text('${field.value}: ${data[field.key]}'),
+          LText('${field.value}: ${data[field.key]}'),
       for (final field in {
         'amount': 'Amount',
         'opening': 'Opening balance',
@@ -576,14 +600,14 @@ class ConflictsScreen extends ConsumerWidget {
         'saved': 'Saved'
       }.entries)
         if (data[field.key] is int)
-          Text('${field.value}: ${money(data[field.key])}'),
+          LText('${field.value}: ${money(data[field.key])}'),
       for (final field in {
         'space': 'Space',
         'account': 'Account',
         'destination': 'To account'
       }.entries)
         if (data[field.key] is String)
-          Text(
+          LText(
               '${field.value}: ${state?.find(data[field.key])?.text('name') ?? 'Unavailable'}'),
     ]);
   }
@@ -592,12 +616,12 @@ class ConflictsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final snapshot = ref.watch(snapshotProvider).valueOrNull;
     return Scaffold(
-        appBar: AppBar(title: const Text('Review sync conflicts')),
+        appBar: AppBar(title: const LText('Review sync conflicts')),
         body: FutureBuilder<List<Json>>(
             future: ref.read(syncProvider.future).then((s) => s.conflicts()),
             builder: (context, async) {
               if (!async.hasData) {
-                return const Center(child: CircularProgressIndicator());
+                return const VaultSkeleton();
               }
               final conflicts = async.data!;
               return ListView(padding: const EdgeInsets.all(24), children: [
@@ -616,20 +640,20 @@ class ConflictsScreen extends ConsumerWidget {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            Text(
+                            LText(
                                 local?.text('name',
                                         local.text('category', local.kind)) ??
                                     'Deleted record',
                                 style: Theme.of(context).textTheme.titleMedium),
                             const SizedBox(height: 14),
-                            Text(duplicateBudget
+                            LText(duplicateBudget
                                 ? 'Current budget'
                                 : 'On this device'),
                             summary(local?.data, snapshot),
                             const SizedBox(height: 16),
-                            Text('On server · revision ${remote['revision']}'),
+                            LText('On server · revision ${remote['revision']}'),
                             if (duplicateBudget)
-                              const Text(
+                              const LText(
                                   'Another budget for the same category and month. Choose one amount; both versions remain in history.'),
                             summary(
                                 remote['deleted'] == true
@@ -657,7 +681,7 @@ class ConflictsScreen extends ConsumerWidget {
                                       }
                                     }
                                   },
-                                  child: Text(local == null
+                                  child: LText(local == null
                                       ? 'Keep deletion'
                                       : 'Keep this device')),
                               FilledButton(
@@ -679,7 +703,7 @@ class ConflictsScreen extends ConsumerWidget {
                                       }
                                     }
                                   },
-                                  child: const Text('Use server')),
+                                  child: const LText('Use server')),
                             ]),
                           ])));
                 }),

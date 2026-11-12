@@ -9,6 +9,7 @@ import '../core/repository.dart';
 import '../core/sync.dart';
 import '../core/vault.dart';
 import '../core/reminders.dart';
+import '../core/money.dart';
 
 const secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -42,6 +43,8 @@ final repositoryProvider = FutureProvider<FinanceRepository>((ref) async {
   final repository =
       FinanceRepository(database, VaultCipher(SecretKey(base64Decode(key))));
   ref.onDispose(repository.dispose);
+  final preferences = await repository.privateData('notifications');
+  configureFinanceClock(preferences['timezone'] as String?);
   await repository.migrateDomain();
   return repository;
 });
@@ -85,12 +88,26 @@ Future<void> selectSpace(WidgetRef ref, String id) async {
 }
 
 final monthProvider = StateProvider<DateTime>(
-    (ref) => DateTime(DateTime.now().year, DateTime.now().month));
+    (ref) => DateTime(financeNow().year, financeNow().month));
 final darkProvider = StateProvider<bool>((ref) => false);
 final languageProvider = StateProvider<String>((ref) => 'en');
 final privacyProvider = StateProvider<bool>((ref) => false);
+final vaultShieldProvider = StateProvider<bool>((ref) => false);
+final vaultUnlockProvider =
+    StateProvider<Future<void> Function()?>((ref) => null);
 final navigationProvider = StateProvider<int>((ref) => 0);
-final remindersProvider = Provider((ref) => ReminderService());
+final notificationResponseProvider = StateProvider<Json?>((ref) => null);
+final remindersProvider = Provider((ref) {
+  final service = ReminderService();
+  final subscription = service.responses.stream.listen((data) {
+    ref.read(notificationResponseProvider.notifier).state = data;
+  });
+  ref.onDispose(() {
+    subscription.cancel();
+    service.dispose();
+  });
+  return service;
+});
 
 String tr(WidgetRef ref, String english, String bangla) =>
     ref.watch(languageProvider) == 'bn' ? bangla : english;
