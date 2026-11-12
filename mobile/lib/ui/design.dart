@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/models.dart';
 import '../core/money.dart';
+import 'localization.dart';
 
 const forest = Color(0xFF123F36);
 const mint = Color(0xFFE5EEE7);
@@ -92,8 +93,8 @@ class SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(top: 24, bottom: 12),
       child: Row(children: [
         Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
-        if (action != null) TextButton(onPressed: onTap, child: Text(action!))
+            child: LText(title, style: Theme.of(context).textTheme.titleLarge)),
+        if (action != null) TextButton(onPressed: onTap, child: LText(action!))
       ]));
 }
 
@@ -114,11 +115,11 @@ class EmptyState extends StatelessWidget {
                 size: 28,
                 color: Theme.of(context).colorScheme.onPrimaryContainer)),
         const SizedBox(height: 18),
-        Text(title,
+        LText(title,
             style: Theme.of(context).textTheme.titleMedium,
             textAlign: TextAlign.center),
         const SizedBox(height: 8),
-        Text(message, textAlign: TextAlign.center),
+        LText(message, textAlign: TextAlign.center),
         if (action != null)
           Padding(padding: const EdgeInsets.only(top: 16), child: action!),
         const SizedBox(height: 12),
@@ -164,12 +165,15 @@ class TransactionTile extends StatelessWidget {
                 ? 'Transfer out'
                 : 'Transfer'
         : snapshot.categoryName(record);
-    final baseDirection =
-        type == 'income' || type == 'debt_collection' || incoming
-            ? 1
-            : type == 'expense' || type == 'debt_payment' || outgoing
-                ? -1
-                : 0;
+    final baseDirection = type == 'income' ||
+            type == 'debt_collection' ||
+            record.text('type') == 'refund' ||
+            record.text('originalType') == 'refund' ||
+            incoming
+        ? 1
+        : type == 'expense' || type == 'debt_payment' || outgoing
+            ? -1
+            : 0;
     final direction = reversed ? -baseDirection : baseDirection;
     final income = direction > 0;
     final color = income
@@ -190,14 +194,16 @@ class TransactionTile extends StatelessWidget {
                 type == 'transfer' ? Icons.swap_horiz : categoryIcon(category),
                 color: color)),
         title: Text(
-            record.text('note').isEmpty ? category : record.text('note'),
+            record.text('note').isEmpty
+                ? localText(context, category)
+                : record.text('note'),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
-            '${scheduled ? 'Scheduled · ' : ''}${snapshot.find(record.text('account'))?.text('name') ?? 'Account'}${type == 'transfer' ? ' → ${snapshot.find(record.text('destination'))?.text('name') ?? 'Account'}' : ''} · ${record.text('date')}',
+            '${scheduled ? '${localText(context, 'Scheduled')} · ' : ''}${snapshot.find(record.text('account'))?.text('name') ?? localText(context, 'Account')}${type == 'transfer' ? ' → ${snapshot.find(record.text('destination'))?.text('name') ?? localText(context, 'Account')}' : ''} · ${record.text('date')}',
             style: Theme.of(context).textTheme.bodySmall),
-        trailing: Text(
+        trailing: LText(
             hidden
                 ? '••••'
                 : '${direction > 0 ? '+' : direction < 0 ? '−' : ''}${money(record.number('amount'))}',
@@ -211,8 +217,9 @@ class TransactionTile extends StatelessWidget {
 void feedbackMessage(BuildContext context, Object message) {
   final text =
       message is FormatException ? message.message : message.toString();
-  ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text), behavior: SnackBarBehavior.floating));
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: LText(localText(context, text)),
+      behavior: SnackBarBehavior.floating));
 }
 
 Future<bool> confirm(BuildContext context, String title, String message,
@@ -220,12 +227,12 @@ Future<bool> confirm(BuildContext context, String title, String message,
     await showDialog<bool>(
         context: context,
         builder: (context) =>
-            AlertDialog(title: Text(title), content: Text(message), actions: [
+            AlertDialog(title: LText(title), content: LText(message), actions: [
               TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel')),
+                  child: const LText('Cancel')),
               FilledButton(
                   onPressed: () => Navigator.pop(context, true),
-                  child: Text(action))
+                  child: LText(localText(context, action)))
             ])) ??
     false;

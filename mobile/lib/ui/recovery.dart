@@ -1,3 +1,4 @@
+import 'localization.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
@@ -81,17 +82,17 @@ class _RecoveryScreenState extends ConsumerState<RecoveryScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const Text('Recover your vault')),
+      appBar: AppBar(title: const LText('Recover your vault')),
       body: Center(
           child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: ListView(padding: const EdgeInsets.all(24), children: [
                 const Icon(Icons.lock_reset, size: 56, color: forest),
                 const SizedBox(height: 24),
-                Text('Start from your safe copy.',
+                LText('Start from your safe copy.',
                     style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 16),
-                const Text(
+                const LText(
                     'Choose an encrypted .hnb backup and enter its password. Device encryption keys and forgotten backup passwords cannot be reconstructed.'),
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
@@ -108,21 +109,21 @@ class _RecoveryScreenState extends ConsumerState<RecoveryScreen> {
                             }
                           },
                     icon: const Icon(Icons.folder_open),
-                    label: Text(_filename ?? 'Choose backup')),
+                    label: LText(_filename ?? 'Choose backup')),
                 const SizedBox(height: 16),
                 TextField(
                     controller: _password,
                     obscureText: true,
-                    decoration:
-                        const InputDecoration(labelText: 'Backup password')),
+                    decoration: InputDecoration(
+                        labelText: localText(context, 'Backup password'))),
                 if (_error != null)
                   Padding(
                       padding: const EdgeInsets.only(top: 16),
                       child:
-                          Text(_error!, style: const TextStyle(color: rust))),
+                          LText(_error!, style: const TextStyle(color: rust))),
                 const SizedBox(height: 24),
                 FilledButton(
                     onPressed: _busy || _backupBytes == null ? null : _restore,
-                    child: Text(_busy ? 'Recovering…' : 'Verify and recover')),
+                    child: LText(_busy ? 'Recovering…' : 'Verify and recover')),
               ]))));
 }

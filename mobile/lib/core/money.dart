@@ -1,4 +1,31 @@
 import 'package:intl/intl.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
+
+String? _financeTimezone;
+bool validFinanceTimezone(Object? value) {
+  if (value == null) return true;
+  if (value is! String) return false;
+  try {
+    tzdata.initializeTimeZones();
+    tz.getLocation(value);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+void configureFinanceClock(String? timezone) {
+  if (timezone == _financeTimezone) return;
+  if (!validFinanceTimezone(timezone)) {
+    throw const FormatException('Choose a valid timezone.');
+  }
+  _financeTimezone = timezone;
+}
+
+DateTime financeNow() => _financeTimezone == null
+    ? DateTime.now()
+    : tz.TZDateTime.now(tz.getLocation(_financeTimezone!));
 
 /// All persisted money is integer minor units. Never parse through a double.
 int parseMoney(String input, {bool allowZero = false}) {

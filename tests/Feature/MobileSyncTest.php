@@ -8,6 +8,41 @@ use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
+test('professional planning records and split refunds round trip through sync', function () {
+    Sanctum::actingAs(User::factory()->create(['username' => 'mobile_'.Str::random(12)]), ['mobile:sync']);
+    $payloads = [
+        'daily_review' => ['date' => '2026-11-12', 'fingerprint' => str_repeat('a', 64), 'noTransactions' => false],
+        'month_close' => ['month' => '2026-10', 'fingerprint' => str_repeat('b', 64), 'closed' => true],
+        'party' => ['name' => 'Customer', 'type' => 'customer'],
+        'invoice' => ['name' => 'INV-1', 'party' => 'customer', 'amount' => 10000, 'direction' => 'receivable', 'due' => '2026-11-15',
+            'lines' => [['name' => 'Design', 'quantity' => 2, 'unitPrice' => 5000]]],
+        'installment' => ['loan' => 'loan', 'principal' => 10000, 'interest' => 100, 'due' => '2026-11-15'],
+        'expectation' => ['name' => 'Salary', 'amount' => 10000, 'category' => 'Salary', 'due' => '2026-11-30'],
+        'template' => ['name' => 'Lunch', 'transaction' => ['space' => 'personal', 'type' => 'expense', 'amount' => 1000, 'account' => 'cash', 'category' => 'Food', 'date' => '2026-11-12']],
+        'transaction' => ['type' => 'refund', 'amount' => 1000, 'refundOf' => 'expense', 'account' => 'cash', 'category' => 'Food',
+            'date' => '2026-11-12', 'fee' => 0, 'splits' => [['category' => 'Food', 'amount' => 1000]]],
+    ];
+    $operations = [];
+    foreach ($payloads as $kind => $data) {
+        $operations[] = mobileOperation(['kind' => $kind, 'data' => ['space' => 'personal', ...$data]]);
+    }
+    $this->postJson('/api/mobile/v1/sync/push', ['operations' => $operations])->assertOk()->assertJsonCount(8, 'results');
+    $this->getJson('/api/mobile/v1/sync/pull')->assertOk()->assertJsonCount(8, 'changes');
+});
+
+test('sync rejects inconsistent invoice and split totals', function () {
+    Sanctum::actingAs(User::factory()->create(['username' => 'mobile_'.Str::random(12)]), ['mobile:sync']);
+    foreach ([
+        ['kind' => 'invoice', 'data' => ['space' => 'personal', 'name' => 'INV-1', 'party' => 'customer', 'amount' => 200,
+            'direction' => 'payable', 'due' => '2026-11-15', 'lines' => [['name' => 'Item', 'quantity' => 1, 'unitPrice' => 100]]]],
+        ['kind' => 'transaction', 'data' => ['space' => 'personal', 'type' => 'expense', 'amount' => 200, 'account' => 'cash',
+            'category' => 'Food', 'date' => '2026-11-12', 'splits' => [['category' => 'Food', 'amount' => 100]]]],
+    ] as $invalid) {
+        $this->postJson('/api/mobile/v1/sync/push', ['operations' => [mobileOperation($invalid)]])->assertUnprocessable();
+    }
+    expect(DB::table('mobile_sync_records')->count())->toBe(0);
+});
+
 function mobileOperation(array $overrides = []): array
 {
     return array_replace(['operation_id' => (string) Str::uuid(), 'id' => (string) Str::uuid(),

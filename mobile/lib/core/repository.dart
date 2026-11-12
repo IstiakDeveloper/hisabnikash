@@ -7,7 +7,10 @@ import 'models.dart';
 import 'vault.dart';
 import 'money.dart';
 import 'lifecycle.dart';
+import 'planning.dart';
 part 'schedules.dart';
+part 'professional_repository.dart';
+part 'flexible_schedules.dart';
 
 class FinanceRepository {
   FinanceRepository(this.db, this.cipher);
@@ -26,7 +29,14 @@ class FinanceRepository {
     'bill',
     'goal',
     'loan',
-    'schedule'
+    'schedule',
+    'daily_review',
+    'month_close',
+    'party',
+    'invoice',
+    'installment',
+    'expectation',
+    'template'
   };
 
   Future<String?> getSetting(String key) async {
@@ -135,6 +145,13 @@ class FinanceRepository {
       }
       if (old?.kind == 'transaction' &&
           (old!.text('bill').isNotEmpty ||
+              old.text('invoice').isNotEmpty ||
+              old.text('expectation').isNotEmpty ||
+              old.text('type') == 'refund' ||
+              old.flag('adjustment') ||
+              current
+                  .of('transaction')
+                  .any((r) => r.text('refundOf') == old.id) ||
               old.text('loan').isNotEmpty ||
               old.text('type') == 'reversal' ||
               current.isReversed(old))) {
@@ -150,7 +167,41 @@ class FinanceRepository {
         throw const FormatException(
             'An account with transactions cannot move to another space.');
       }
+      if (kind == 'account' &&
+          old != null &&
+          current.of('transaction').any((r) =>
+              r.text('account') == old.id || r.text('destination') == old.id) &&
+          (data['opening'] != old.number('opening') ||
+              (data['openingDate'] ?? '') != old.text('openingDate'))) {
+        throw const FormatException(
+            'Use reconciliation to change an account balance with transaction history.');
+      }
+      if (kind == 'loan' &&
+          old != null &&
+          current.of('installment').any((i) => i.text('loan') == old.id) &&
+          (data['principal'] != old.number('principal') ||
+              data['space'] != old.text('space') ||
+              data['direction'] != old.text('direction'))) {
+        throw const FormatException(
+            'A scheduled loan cannot change principal, direction or space.');
+      }
       validate(kind, data, current, id: recordId);
+      if (kind == 'goal' &&
+          (data['backingAccount'] as String? ?? '').isNotEmpty &&
+          (old == null ||
+              data['backingAccount'] != old.text('backingAccount') ||
+              data['saved'] > old.number('saved'))) {
+        final account = current.find(data['backingAccount'])!;
+        final allocated = current
+            .of('goal')
+            .where((g) =>
+                g.id != recordId && g.text('backingAccount') == account.id)
+            .fold<int>(0, (s, g) => s + g.number('saved'));
+        if (allocated + data['saved'] > current.balance(account)) {
+          throw const FormatException(
+              'Savings allocation exceeds the recorded account balance.');
+        }
+      }
       if (kind == 'category' && old != null) {
         final linked = current.records
             .where((r) =>
@@ -187,6 +238,7 @@ class FinanceRepository {
 
   Future<void> _write(String id, String kind, Json data, int revision,
       {bool deleted = false}) async {
+    if (kind == 'transaction') await _assertOpenPeriod(id, data);
     final payload = await cipher.seal(data);
     final previous = await db.customSelect('SELECT * FROM records WHERE id = ?',
         variables: [Variable.withString(id)]).get();
@@ -196,7 +248,7 @@ class FinanceRepository {
           [
             id,
             row.read<String>('payload'),
-            DateTime.now().toUtc().toIso8601String()
+            financeNow().toUtc().toIso8601String()
           ]);
     }
     await db.customStatement(
@@ -241,7 +293,7 @@ class FinanceRepository {
           'INSERT INTO audit(record_id,payload,created_at) VALUES (?,?,?)', [
         old.id,
         await cipher.seal(old.data),
-        DateTime.now().toUtc().toIso8601String()
+        financeNow().toUtc().toIso8601String()
       ]);
     }
     await db.customStatement(
@@ -293,15 +345,29 @@ class FinanceRepository {
         throw const FormatException(
             'Only a posted, unreversed transaction can be reversed.');
       }
+      if (state
+          .of('transaction')
+          .any((r) => r.text('refundOf') == fresh.id && !state.isReversed(r))) {
+        throw const FormatException(
+            'Reverse the refunds before reversing this expense.');
+      }
       final data = <String, dynamic>{
         ...fresh.data,
         'type': 'reversal',
         'originalType': fresh.text('type'),
         'reversalOf': fresh.id,
-        'date': dayKey(DateTime.now()),
+        'date': dayKey(financeNow()),
         'note': 'Correction: ${reason.trim()}'
       };
-      for (final field in ['bill', 'loan', 'receipt']) {
+      for (final field in [
+        'bill',
+        'loan',
+        'receipt',
+        'invoice',
+        'installment',
+        'expectation',
+        'refundOf'
+      ]) {
         data.remove(field);
       }
       final id = 'reversal:${fresh.id}';
@@ -316,6 +382,7 @@ class FinanceRepository {
     if (!kinds.contains(kind)) {
       throw const FormatException('Unknown record type.');
     }
+    _validateProfessional(kind, data, state, id: id);
     for (final field in [
       'space',
       'name',
@@ -473,7 +540,20 @@ class FinanceRepository {
           final bill = state.find(data['bill'])!;
           if (data['type'] != 'expense' ||
               data['space'] != bill.text('space') ||
-              data['amount'] != bill.number('amount')) {
+              (!(id != null &&
+                      state.find(id) != null &&
+                      state.isReversed(state.find(id)!)) &&
+                  (data['amount'] as int) >
+                      bill.number('amount') -
+                          state
+                              .of('transaction')
+                              .where((r) =>
+                                  r.id != id &&
+                                  r.text('bill') == bill.id &&
+                                  state.isPosted(r) &&
+                                  !state.isReversed(r))
+                              .fold<int>(
+                                  0, (s, r) => s + r.number('amount')))) {
             throw const FormatException(
                 'Bill payment does not match the bill.');
           }
@@ -517,8 +597,16 @@ class FinanceRepository {
         requiredText('name');
         amount('amount');
         date('due');
-        if (!{'once', 'monthly'}.contains(data['frequency'])) {
+        if (!{'once', 'monthly', 'weekly', 'yearly', 'custom'}
+            .contains(data['frequency'])) {
           throw const FormatException('Invalid frequency.');
+        }
+        if (data['frequency'] == 'custom' &&
+            (data['intervalDays'] is! int ||
+                data['intervalDays'] < 1 ||
+                data['intervalDays'] > 3650)) {
+          throw const FormatException(
+              'Choose a repeat interval from 1 to 3650 days.');
         }
         if (data['scheduleId'] != null) reference('scheduleId', 'schedule');
         break;
@@ -565,6 +653,7 @@ class FinanceRepository {
             record.revision);
         return;
       }
+      _beforeProfessionalRemove(record, state);
       if (record.kind == 'transaction' &&
           (record.text('bill').isNotEmpty ||
               record.text('loan').isNotEmpty ||
@@ -604,7 +693,7 @@ class FinanceRepository {
     changes.add(null);
   }
 
-  Future<void> payBill(Record bill, String accountId) async {
+  Future<void> payBill(Record bill, String accountId, {int? amount}) async {
     await db.transaction(() async {
       final state = await snapshot();
       final fresh = state.find(bill.id);
@@ -618,10 +707,11 @@ class FinanceRepository {
       final tx = <String, dynamic>{
         'space': fresh.text('space'),
         'type': 'expense',
-        'amount': fresh.number('amount'),
+        'amount':
+            amount ?? fresh.number('amount') - state.billPaidAmount(fresh),
         'account': accountId,
-        'category': 'Bills & utilities',
-        'date': dayKey(DateTime.now()),
+        'category': fresh.text('category', 'Bills & utilities'),
+        'date': dayKey(financeNow()),
         'note': fresh.text('name'),
         'bill': fresh.id
       };
@@ -634,7 +724,9 @@ class FinanceRepository {
           : '${fresh.id}:payment:$previous';
       validate('transaction', tx, state, id: id);
       await _write(id, 'transaction', tx, 0);
-      await _BillScheduler(this).next(fresh);
+      if ((amount ?? fresh.number('amount') - state.billPaidAmount(fresh)) +
+              state.billPaidAmount(fresh) >=
+          fresh.number('amount')) await _BillScheduler(this).next(fresh);
     });
     changes.add(null);
   }
@@ -642,7 +734,10 @@ class FinanceRepository {
   Future<void> ensureBillOccurrences({DateTime? now}) async {
     var changed = false;
     await db.transaction(() async {
-      changed = await _BillScheduler(this).materialize(now ?? DateTime.now());
+      changed = await _BillScheduler(this).materialize(now ?? financeNow());
+      changed =
+          await _FlexibleBillScheduler(this).materialize(now ?? financeNow()) ||
+              changed;
     });
     if (changed) changes.add(null);
   }
@@ -699,6 +794,10 @@ class FinanceRepository {
     await db.transaction(() async {
       final state = await snapshot();
       final fresh = state.find(loan.id);
+      if (state.of('installment').any((i) => i.text('loan') == loan.id)) {
+        throw const FormatException(
+            'Pay this loan through its installment schedule.');
+      }
       if (fresh == null ||
           fresh.localVersion != loan.localVersion ||
           amount <= 0 ||
@@ -714,7 +813,7 @@ class FinanceRepository {
         'amount': amount,
         'account': accountId,
         'category': 'Loan repayment',
-        'date': dayKey(DateTime.now()),
+        'date': dayKey(financeNow()),
         'note': fresh.text('name'),
         'loan': fresh.id
       };
@@ -753,9 +852,17 @@ class FinanceRepository {
         }
         return {
           'schema': 2,
-          'createdAt': DateTime.now().toUtc().toIso8601String(),
+          'createdAt': financeNow().toUtc().toIso8601String(),
           'records': records,
           'history': history,
+          'localData': {
+            for (final row in await db
+                .customSelect(
+                    "SELECT key,value FROM settings WHERE key LIKE 'private:%'")
+                .get())
+              row.read<String>('key').substring(8):
+                  await cipher.open(row.read<String>('value'))
+          },
           'preferences': {
             for (final key in ['dark', 'language', 'selectedSpace'])
               if (await getSetting(key) != null) key: await getSetting(key)
@@ -764,6 +871,13 @@ class FinanceRepository {
       });
 
   static List<Record> validateBackup(Json payload) {
+    final notificationData = payload['localData'] is Map
+        ? (payload['localData'] as Map)['notifications']
+        : null;
+    if (notificationData is Map &&
+        !validFinanceTimezone(notificationData['timezone'])) {
+      throw const FormatException('Invalid backup timezone.');
+    }
     if (!{1, 2}.contains(payload['schema']) ||
         payload['records'] is! List ||
         (payload['records'] as List).length > 100000) {
@@ -810,6 +924,15 @@ class FinanceRepository {
       }
     }
     final preferences = payload['preferences'];
+    if (payload['localData'] != null &&
+        (payload['localData'] is! Map ||
+            (payload['localData'] as Map).entries.any((e) =>
+                e.key is! String ||
+                !RegExp(r'^(notifications|inbox|draft:[a-zA-Z0-9:_-]+|favorites)$')
+                    .hasMatch(e.key) ||
+                e.value is! Map))) {
+      throw const FormatException('Invalid backup local data.');
+    }
     if (preferences != null &&
         (preferences is! Map ||
             preferences.entries.any((e) =>
@@ -839,6 +962,12 @@ class FinanceRepository {
       }
       await db.customStatement(
           "DELETE FROM settings WHERE key IN ('cursor', 'lastSync')");
+      await db
+          .customStatement("DELETE FROM settings WHERE key LIKE 'private:%'");
+      for (final entry in (payload['localData'] as Map? ?? const {}).entries) {
+        await db.customStatement('INSERT INTO settings(key,value) VALUES (?,?)',
+            ['private:${entry.key}', await cipher.seal(entry.value)]);
+      }
       await db.customStatement(
           "INSERT OR REPLACE INTO settings(key,value) VALUES ('restoreCloudReview','true')");
       for (final r in records) {
@@ -864,6 +993,8 @@ class FinanceRepository {
           "INSERT OR REPLACE INTO settings(key,value) VALUES ('onboarded','true')");
     });
     _decoded.clear();
+    configureFinanceClock(
+        (await privateData('notifications'))['timezone'] as String?);
     changes.add(null);
   }
 
@@ -875,7 +1006,7 @@ class FinanceRepository {
     }
 
     return [
-      'Date,Type,Category,Amount BDT,Account,Note',
+      'Date,Type,Category,Amount BDT,Account,Note,Space,Destination,Status,Fee BDT,Splits,Invoice',
       ...snapshot.of('transaction').map((r) => [
             r.text('date'),
             r.text('type') == 'reversal'
@@ -885,6 +1016,12 @@ class FinanceRepository {
             editableMoney(snapshot.signedAmount(r)),
             snapshot.find(r.text('account'))?.text('name'),
             r.text('note'),
+            snapshot.find(r.text('space'))?.text('name'),
+            snapshot.find(r.text('destination'))?.text('name'),
+            snapshot.isPosted(r) ? 'Posted' : 'Scheduled',
+            editableMoney(r.number('fee')),
+            jsonEncode(r.data['splits'] ?? []),
+            snapshot.find(r.text('invoice'))?.text('name'),
           ].map(cell).join(','))
     ].join('\r\n');
   }
