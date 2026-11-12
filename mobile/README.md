@@ -5,12 +5,30 @@ application is an optional sync host, not a dependency for everyday use.
 
 ## Latest implementation
 
-Version **0.2.0** implements the [icon, startup and UI refresh](docs/UI_REFRESH_2026-11-12.md):
+Version **0.3.1** completes the [Bengali UI/report work and notification checks](docs/COMPLETION_0.3.1_2026-11-12.md).
+It adds shaped Bengali PDF text, native iPhone permission inspection, bilingual
+notification actions and a delivery self-test. The local Flutter suite has
+91 passing tests. The user subsequently authorized the
+[successful unsigned iOS build](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/43267612022)
+on a separate source branch. A local Mac build script is also available at
+`tool/build_ios_local.sh`; the prior 0.2.0 IPA is historical.
+The [verified 0.3.1 IPA](artifacts/releases/0.3.1/HisabNikash-0.3.1-unsigned.ipa)
+and [verification manifest](artifacts/releases/0.3.1/ios-manifest.json) are local.
+This is unsigned and requires signing/provisioning before iPhone installation.
+
+Version **0.3.0** adds [smart reminders and professional finance workflows](docs/IMPLEMENTATION_0.3.0_2026-11-12.md):
+daily 8 PM review, budget/balance alerts, cash-flow planning, split/refund/fee
+transactions, reconciliation, month review, installment schedules, funded savings,
+encrypted drafts, and customer/supplier invoices. Open the bell icon for Finance
+center. Enable daily notifications in its Reminders tab and grant OS permission.
+The signed Android review packages are now in `artifacts/releases/0.3.1/`.
+
+Version **0.2.0** introduced the [icon, startup and UI refresh](docs/UI_REFRESH_2026-11-12.md):
 native launcher icons and splash assets, branded loading/animation, genuine font
 weights, a revised dashboard and keyboard-safe save actions. See the report for
 preview images, verification and physical-device checks still required.
 
-The current install/review package is `artifacts/releases/0.2.0/`: signed ARM64
+The previous install/review package is `artifacts/releases/0.2.0/`: signed ARM64
 and universal Android APKs, the unsigned ARM64 IPA, checksums and UI previews.
 The [0.2.0 IPA build and compiled-brand checks passed](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/43079501245).
 
@@ -197,7 +215,7 @@ fixture data. `.runtime` contains disposable local emulator data and is ignored.
 GitHub Actions includes Android quality/build, iOS simulator build, and sync API
 tests. Those hosted workflows must actually run before claiming CI/iOS success.
 
-## Release status
+## Historical release status before 0.3.0
 
 This is an executable development version, **not an App Store/Play release**.
 

@@ -1,9 +1,11 @@
+import 'localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../app/providers.dart';
 import '../core/models.dart';
 import '../core/money.dart';
+import '../core/planning.dart';
 import 'design.dart';
 
 class InsightsScreen extends ConsumerWidget {
@@ -28,13 +30,7 @@ class InsightsScreen extends ConsumerWidget {
         if (amount > chartMax) chartMax = amount;
       }
     }
-    final grouped = <String, int>{};
-    for (final r in state.transactions(space, month).where(
-        (r) => state.effectiveType(r) == 'expense' && state.isPosted(r))) {
-      grouped.update(
-          state.categoryName(r), (value) => value + state.signedAmount(r),
-          ifAbsent: () => state.signedAmount(r));
-    }
+    final grouped = state.categorySpending(space, month);
     grouped.removeWhere((_, amount) => amount == 0);
     final categories = grouped.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -42,17 +38,17 @@ class InsightsScreen extends ConsumerWidget {
     return ListView(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
         children: [
-          Text(tr(ref, 'See the bigger picture.', 'আপনার টাকার পুরো চিত্র।'),
+          LText(tr(ref, 'See the bigger picture.', 'আপনার টাকার পুরো চিত্র।'),
               style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: 20),
           Surface(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Text(tr(ref, 'Monthly cash flow', 'মাসের নগদ প্রবাহ'),
+                LText(tr(ref, 'Monthly cash flow', 'মাসের নগদ প্রবাহ'),
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 12),
-                Text(display(state.cashFlow(space, month)),
+                LText(display(state.cashFlow(space, month)),
                     style: Theme.of(context).textTheme.headlineLarge),
                 const SizedBox(height: 20),
                 _row('Income', display(income), forest),
@@ -68,7 +64,7 @@ class InsightsScreen extends ConsumerWidget {
                   _row(
                       'Transfers to other spaces', display(transfersOut), rust),
                 const SizedBox(height: 10),
-                const Text(
+                const LText(
                     'Opening balances and internal transfers are excluded.',
                     style: TextStyle(fontSize: 12)),
               ])),
@@ -87,8 +83,8 @@ class InsightsScreen extends ConsumerWidget {
                               Row(children: [
                                 Icon(categoryIcon(entry.key), size: 18),
                                 const SizedBox(width: 10),
-                                Expanded(child: Text(entry.key)),
-                                Text(display(entry.value),
+                                Expanded(child: LText(entry.key)),
+                                LText(display(entry.value),
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w600))
                               ]),
@@ -106,7 +102,7 @@ class InsightsScreen extends ConsumerWidget {
                               const SizedBox(height: 5),
                               Align(
                                   alignment: Alignment.centerRight,
-                                  child: Text(
+                                  child: LText(
                                       expense > 0 && entry.value >= 0
                                           ? '${(entry.value / expense * 100).round()}%'
                                           : 'Net correction',
@@ -128,7 +124,7 @@ class InsightsScreen extends ConsumerWidget {
                     child: Row(children: [
                       SizedBox(
                           width: 42,
-                          child: Text(DateFormat('MMM').format(period))),
+                          child: LText(DateFormat('MMM').format(period))),
                       Expanded(
                           child: Column(children: [
                         LinearProgressIndicator(
@@ -157,14 +153,14 @@ class InsightsScreen extends ConsumerWidget {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text(display(incoming),
+                                LText(display(incoming),
                                     style: const TextStyle(fontSize: 12)),
-                                Text(display(outgoing),
+                                LText(display(outgoing),
                                     style: const TextStyle(fontSize: 12))
                               ])),
                     ]));
               }),
-            const Text(
+            const LText(
                 'Top: income · Bottom: expenses\nAll months use the same scale. Scheduled entries are excluded.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12)),
@@ -180,7 +176,7 @@ class InsightsScreen extends ConsumerWidget {
             height: 8,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 10),
-        Expanded(child: Text(name)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        Expanded(child: LText(name)),
+        LText(value, style: const TextStyle(fontWeight: FontWeight.w600)),
       ]));
 }

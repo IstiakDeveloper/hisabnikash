@@ -53,7 +53,7 @@ class SyncController extends Controller
             'operations' => ['required', 'array', 'min:1', 'max:100'],
             'operations.*.operation_id' => ['required', 'uuid', 'distinct'],
             'operations.*.id' => ['required', 'string', 'max:150', 'distinct'],
-            'operations.*.kind' => ['required', Rule::in(['space', 'account', 'transaction', 'budget', 'bill', 'goal', 'loan', 'category', 'schedule'])],
+            'operations.*.kind' => ['required', Rule::in(['space', 'account', 'transaction', 'budget', 'bill', 'goal', 'loan', 'category', 'schedule', 'daily_review', 'month_close', 'party', 'invoice', 'installment', 'expectation', 'template'])],
             'operations.*.base_revision' => ['required', 'integer', 'min:0'],
             'operations.*.deleted' => ['required', 'boolean'],
             'operations.*.data' => ['required', 'array'],
@@ -150,21 +150,39 @@ class SyncController extends Controller
             'space' => ['name' => $name],
             'category' => ['name' => $name, 'type' => ['required', Rule::in(['expense', 'income'])]],
             'account' => ['name' => $name, 'opening' => ['required', 'integer', 'min:0', 'max:99999999999999']],
-            'transaction' => ['amount' => $money, 'type' => ['required', Rule::in(['income', 'expense', 'transfer', 'debt_payment', 'debt_collection', 'reversal'])],
+            'transaction' => ['amount' => $money, 'type' => ['required', Rule::in(['income', 'expense', 'transfer', 'debt_payment', 'debt_collection', 'reversal', 'refund'])],
                 'account' => ['required', 'string', 'max:150'], 'date' => ['required', 'date_format:Y-m-d'],
                 'category' => ['required_unless:type,transfer,reversal', 'nullable', 'string', 'max:500'],
-                'originalType' => ['required_if:type,reversal', Rule::in(['income', 'expense', 'transfer', 'debt_payment', 'debt_collection'])],
+                'originalType' => ['required_if:type,reversal', Rule::in(['income', 'expense', 'transfer', 'debt_payment', 'debt_collection', 'refund'])],
                 'reversalOf' => ['required_if:type,reversal', 'string', 'max:150'],
                 'destination' => ['required_if:type,transfer', 'required_if:originalType,transfer', 'nullable', 'string', 'max:150', 'different:account']],
             'budget' => ['amount' => $money, 'category' => $name, 'month' => ['required', 'date_format:Y-m']],
             'bill' => ['name' => $name, 'amount' => $money, 'due' => ['required', 'date_format:Y-m-d'],
-                'frequency' => ['required', Rule::in(['once', 'monthly'])]],
+                'frequency' => ['required', Rule::in(['once', 'monthly', 'weekly', 'yearly', 'custom'])],
+                'intervalDays' => ['required_if:frequency,custom', 'nullable', 'integer', 'between:1,3650']],
             'schedule' => ['name' => $name, 'amount' => $money, 'startDate' => ['required', 'date_format:Y-m-d'],
                 'anchorDay' => ['required', 'integer', 'between:1,31'], 'active' => ['required', 'boolean'], 'series' => $name],
             'goal' => ['name' => $name, 'target' => $money, 'saved' => ['required', 'integer', 'min:0', 'max:99999999999999']],
             'loan' => ['name' => $name, 'principal' => $money, 'repaid' => ['required', 'integer', 'min:0', 'lte:principal'],
                 'direction' => ['required', Rule::in(['borrowed', 'lent'])]],
+            'daily_review' => ['date' => ['required', 'date_format:Y-m-d'], 'fingerprint' => ['required', 'string', 'size:64'], 'noTransactions' => ['required', 'boolean']],
+            'month_close' => ['month' => ['required', 'date_format:Y-m'], 'fingerprint' => ['required', 'string', 'size:64'], 'closed' => ['required', 'boolean']],
+            'party' => ['name' => $name, 'type' => ['required', Rule::in(['customer', 'supplier'])], 'contact' => ['nullable', 'string', 'max:500']],
+            'invoice' => ['name' => $name, 'amount' => $money, 'party' => $name, 'due' => ['required', 'date_format:Y-m-d'],
+                'direction' => ['required', Rule::in(['receivable', 'payable'])], 'lines' => ['required', 'array', 'min:1', 'max:100'],
+                'lines.*.name' => $name, 'lines.*.quantity' => ['required', 'integer', 'between:1,1000000'], 'lines.*.unitPrice' => $money],
+            'installment' => ['loan' => $name, 'principal' => $money, 'interest' => ['required', 'integer', 'between:0,99999999999999'], 'due' => ['required', 'date_format:Y-m-d']],
+            'expectation' => ['name' => $name, 'amount' => $money, 'category' => $name, 'due' => ['required', 'date_format:Y-m-d']],
+            'template' => ['name' => $name, 'transaction' => ['required', 'array']],
         };
+        if ($kind === 'transaction') {
+            $rules += ['fee' => ['nullable', 'integer', 'between:0,99999999999999'], 'adjustment' => ['nullable', 'boolean'],
+                'refundOf' => ['required_if:type,refund', 'string', 'max:150'], 'splits' => ['nullable', 'array', 'min:1', 'max:30'],
+                'splits.*.category' => $name, 'splits.*.amount' => $money];
+        }
+        if ($kind === 'account') {
+            $rules += ['lowBalance' => ['nullable', 'integer', 'between:0,99999999999999'], 'openingDate' => ['nullable', 'date_format:Y-m-d']];
+        }
         if ($kind !== 'space') {
             $rules['space'] = ['required', 'string', 'max:150'];
         }
@@ -173,6 +191,19 @@ class SyncController extends Controller
         $rules['receipt.bytes'] = ['required_with:receipt', 'string', 'max:700000'];
         $rules['receipt.mime'] = ['required_with:receipt', Rule::in(['image/jpeg', 'image/png'])];
         Validator::make($data, $rules)->validate();
+        if ($kind === 'invoice' && array_sum(array_map(fn ($line) => $line['quantity'] * $line['unitPrice'], $data['lines'])) !== (int) $data['amount']) {
+            throw ValidationException::withMessages(['lines' => 'Invoice items must match the total.']);
+        }
+        if ($kind === 'transaction' && isset($data['splits']) &&
+            (! in_array($data['type'], ['expense', 'refund', 'reversal'], true) || array_sum(array_column($data['splits'], 'amount')) !== (int) $data['amount'])) {
+            throw ValidationException::withMessages(['splits' => 'Split amounts must match an expense or refund total.']);
+        }
+        if ($kind === 'template') {
+            if (! in_array($data['transaction']['type'] ?? null, ['income', 'expense', 'transfer'], true) || ($data['transaction']['space'] ?? null) !== $data['space']) {
+                throw ValidationException::withMessages(['transaction' => 'Invalid ordinary transaction template.']);
+            }
+            $this->validatePayload('transaction', $data['transaction']);
+        }
         if (isset($data['receipt'])) {
             $bytes = base64_decode($data['receipt']['bytes'], strict: true);
             $prefix = $data['receipt']['mime'] === 'image/png' ? "\x89PNG\r\n\x1a\n" : "\xff\xd8\xff";

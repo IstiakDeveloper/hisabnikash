@@ -1,3 +1,4 @@
+import 'localization.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -94,7 +95,7 @@ class StartupView extends StatelessWidget {
                               offset: Offset(0, 8 * (1 - value)),
                               child: child)),
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text(bangla ? 'হিসাবনিকাশ' : 'HisabNikash',
+                        LText(bangla ? 'হিসাবনিকাশ' : 'HisabNikash',
                             style: TextStyle(
                                 color: dark
                                     ? const Color(0xFFF7F6ED)
@@ -105,7 +106,7 @@ class StartupView extends StatelessWidget {
                         const SizedBox(height: 8),
                         Semantics(
                             liveRegion: true,
-                            child: Text(
+                            child: LText(
                                 bangla
                                     ? 'আপনার ব্যক্তিগত হিসাব খুলছে…'
                                     : 'Opening your private vault…',
@@ -119,7 +120,7 @@ class StartupView extends StatelessWidget {
                             width: 112,
                             height: reduced ? 18 : 3,
                             child: reduced
-                                ? const Text('•••',
+                                ? const LText('•••',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(color: Color(0xFF8A9D91)))
                                 : const LinearProgressIndicator(

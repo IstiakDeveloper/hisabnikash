@@ -1,3 +1,4 @@
+import 'localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
@@ -11,17 +12,17 @@ class AccountStatement extends ConsumerWidget {
   final String accountId;
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
-      appBar: AppBar(title: const Text('Account statement')),
+      appBar: AppBar(title: const LText('Account statement')),
       body: ref.watch(snapshotProvider).when(
           loading: () => const VaultSkeleton(),
           error: (e, _) => Center(
               child: TextButton(
                   onPressed: () => ref.invalidate(snapshotProvider),
-                  child: const Text('Could not load statement. Try again.'))),
+                  child: const LText('Could not load statement. Try again.'))),
           data: (state) {
             final account = state.find(accountId);
             if (account == null) {
-              return const Center(child: Text('This account was removed.'));
+              return const Center(child: LText('This account was removed.'));
             }
             final lines = state.statement(account);
             final hidden = ref.watch(privacyProvider);
@@ -38,20 +39,20 @@ class AccountStatement extends ConsumerWidget {
                           Text(account.text('name'),
                               style: Theme.of(context).textTheme.titleLarge),
                           const SizedBox(height: 12),
-                          Text(amount(state.balance(account)),
+                          LText(amount(state.balance(account)),
                               style:
                                   Theme.of(context).textTheme.headlineMedium),
-                          const Text(
+                          const LText(
                               'Current balance · posted transactions only'),
                           const SizedBox(height: 12),
-                          Text(
+                          LText(
                               'Opening balance: ${amount(account.number('opening'))}'),
                         ]));
                   }
                   if (index == 1) {
                     return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Text(
+                        child: LText(
                             'Date order · running balance after each entry'));
                   }
                   final line = lines[index - 2], transaction = line.record;
@@ -62,17 +63,17 @@ class AccountStatement extends ConsumerWidget {
                               ? 'Transfer'
                               : state.categoryName(transaction))
                           : transaction.text('note')),
-                      subtitle: Text(
+                      subtitle: LText(
                           '${transaction.text('date')} · ${transaction.text('type')}'),
                       trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
+                            LText(
                                 '${!hidden && line.movement > 0 ? '+' : ''}${amount(line.movement)}',
                                 style: TextStyle(
                                     color: line.movement >= 0 ? forest : rust)),
-                            Text('Balance ${amount(line.balance)}',
+                            LText('Balance ${amount(line.balance)}',
                                 style: Theme.of(context).textTheme.bodySmall),
                           ]),
                       onTap: () =>

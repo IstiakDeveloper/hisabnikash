@@ -5,6 +5,11 @@ class _BillScheduler {
   final FinanceRepository repo;
   Future<Json> configure(String id, Json data, Record? old,
       FinanceSnapshot state, String scope) async {
+    if (!{'once', 'monthly'}.contains(data['frequency']) ||
+        (old != null && !{'once', 'monthly'}.contains(old.text('frequency')))) {
+      return _FlexibleBillScheduler(repo)
+          .configure(id, data, old, state, scope);
+    }
     var scheduleId =
         old?.text('scheduleId') ?? data['scheduleId'] as String? ?? '';
     final series =
@@ -21,6 +26,7 @@ class _BillScheduler {
               'space': data['space'],
               'name': data['name'],
               'amount': data['amount'],
+              'category': data['category'] ?? 'Bills & utilities',
               'series': series,
               'startDate': data['due'],
               'anchorDay': data['anchorDay'] ?? DateTime.parse(data['due']).day,
@@ -57,6 +63,7 @@ class _BillScheduler {
               ...schedule.data,
               'name': data['name'],
               'amount': data['amount'],
+              'category': data['category'] ?? 'Bills & utilities',
               'anchorDay': anchor,
               'active': data['frequency'] == 'monthly'
             },
@@ -84,6 +91,7 @@ class _BillScheduler {
                   'series': series,
                   'name': data['name'],
                   'amount': data['amount'],
+                  'category': data['category'] ?? 'Bills & utilities',
                   'anchorDay': anchor,
                   'due': dayKey(DateTime(
                       month.year, month.month, anchor > last ? last : anchor))
@@ -120,8 +128,8 @@ class _BillScheduler {
       cycles.add('$series:$cycle');
     }
     final horizon = DateTime(now.year, now.month + 3, 0);
-    for (final schedule
-        in state.of('schedule').where((r) => r.flag('active'))) {
+    for (final schedule in state.of('schedule').where((r) =>
+        r.flag('active') && r.text('frequency', 'monthly') == 'monthly')) {
       final start = DateTime.parse(schedule.text('startDate'));
       final anchor = schedule.number('anchorDay');
       for (var i = 0; i < 1200; i++) {
@@ -141,6 +149,7 @@ class _BillScheduler {
               'space': schedule.text('space'),
               'name': schedule.text('name'),
               'amount': schedule.number('amount'),
+              'category': schedule.text('category', 'Bills & utilities'),
               'due': dayKey(due),
               'frequency': 'monthly',
               'paid': false,
@@ -162,6 +171,10 @@ class _BillScheduler {
         ? null
         : await repo.record(bill.text('scheduleId'));
     if (schedule == null || !schedule.flag('active')) return;
+    if (schedule.text('frequency', 'monthly') != 'monthly') {
+      await _FlexibleBillScheduler(repo).materialize(financeNow());
+      return;
+    }
     final base = DateTime.parse(
         '${bill.text('cycle', bill.text('due').substring(0, 7))}-01');
     final nextMonth = DateTime(base.year, base.month + 1),
@@ -188,6 +201,7 @@ class _BillScheduler {
           'space': schedule.text('space'),
           'name': schedule.text('name'),
           'amount': schedule.number('amount'),
+          'category': schedule.text('category', 'Bills & utilities'),
           'due': dayKey(due),
           'frequency': 'monthly',
           'paid': false,

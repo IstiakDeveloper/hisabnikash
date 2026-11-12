@@ -399,7 +399,7 @@ void main() {
     tester.view.viewInsets = const FakeViewPadding(bottom: 280);
     addTearDown(tester.view.resetViewInsets);
     await tester.pumpAndSettle();
-    expect(tester.getBottomRight(find.text('Save transaction')).dy,
+    expect(tester.getBottomRight(find.text('লেনদেন সংরক্ষণ করুন')).dy,
         lessThan(844 - 280));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());

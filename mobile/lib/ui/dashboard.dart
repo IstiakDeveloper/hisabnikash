@@ -1,3 +1,4 @@
+import 'localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,6 +10,7 @@ import 'design.dart';
 import 'editors.dart';
 import 'activity.dart';
 import 'statement.dart';
+import 'finance_center.dart';
 
 class Dashboard extends ConsumerWidget {
   const Dashboard(this.state, {super.key, required this.onActivity});
@@ -48,7 +50,7 @@ class Dashboard extends ConsumerWidget {
                   children: [
                     Row(children: [
                       Expanded(
-                          child: Text(
+                          child: LText(
                               tr(ref, 'Your balance', 'আপনার ব্যালেন্স'),
                               style: const TextStyle(
                                   color: Color(0xFFCCE0D4), fontSize: 14))),
@@ -59,7 +61,7 @@ class Dashboard extends ConsumerWidget {
                     FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
-                        child: Text(display(balance),
+                        child: LText(display(balance),
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 40,
@@ -68,7 +70,7 @@ class Dashboard extends ConsumerWidget {
                                 letterSpacing: -1.4,
                                 fontFeatures: [FontFeature.tabularFigures()]))),
                     const SizedBox(height: 12),
-                    Text(
+                    LText(
                         tr(ref, '${accounts.length} accounts · Available today',
                             '${accounts.length}টি অ্যাকাউন্ট · আজকের ব্যালেন্স'),
                         style: const TextStyle(
@@ -79,7 +81,7 @@ class Dashboard extends ConsumerWidget {
                           size: 14, color: Color(0xFFDFC285)),
                       const SizedBox(width: 6),
                       Expanded(
-                          child: Text(
+                          child: LText(
                               tr(ref, 'Saved on this device',
                                   'এই ডিভাইসে সংরক্ষিত'),
                               style: const TextStyle(
@@ -93,7 +95,7 @@ class Dashboard extends ConsumerWidget {
                     onPressed: () => openEditor(context, 'transaction'),
                     icon: const Icon(Icons.add, size: 20),
                     label:
-                        Text(tr(ref, 'Add transaction', 'লেনদেন যোগ করুন')))),
+                        LText(tr(ref, 'Add transaction', 'লেনদেন যোগ করুন')))),
             const SizedBox(width: 8),
             IconButton.filledTonal(
                 tooltip: tr(ref, 'Add income', 'আয় যোগ করুন'),
@@ -108,7 +110,7 @@ class Dashboard extends ConsumerWidget {
                 icon: const Icon(Icons.swap_horiz)),
           ]),
           const SizedBox(height: 24),
-          Text(
+          LText(
               '${DateFormat('MMMM yyyy', ref.watch(languageProvider)).format(month)} · ${tr(ref, 'Cash movement', 'টাকার চলাচল')}',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 10),
@@ -132,7 +134,7 @@ class Dashboard extends ConsumerWidget {
           if (state.conflicts > 0)
             Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text('${state.conflicts} sync conflicts need review',
+                child: LText('${state.conflicts} sync conflicts need review',
                     style: const TextStyle(color: rust))),
           SectionTitle(tr(ref, 'Your accounts', 'আপনার অ্যাকাউন্ট'),
               action: tr(ref, 'Add', 'যোগ করুন'),
@@ -163,17 +165,17 @@ class Dashboard extends ConsumerWidget {
                                         : Icons.account_balance_wallet_outlined,
                                 color: forest,
                                 size: 20)),
-                        title: Text(accounts[i].text('name'),
+                        title: LText(accounts[i].text('name'),
                             style: const TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w600)),
                         subtitle:
-                            Text(state.find(accounts[i].text('space'))?.text('name') ?? '',
+                            LText(state.find(accounts[i].text('space'))?.text('name') ?? '',
                                 style: Theme.of(context).textTheme.bodySmall),
                         trailing: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 136),
                             child: FittedBox(
                                 fit: BoxFit.scaleDown,
-                                child: Text(display(state.balance(accounts[i])),
+                                child: LText(display(state.balance(accounts[i])),
                                     style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -186,6 +188,10 @@ class Dashboard extends ConsumerWidget {
                                 builder: (_) => AccountStatement(accounts[i].id)))),
                   ],
                 ])),
+          const SizedBox(height: 16),
+          DailyReviewCard(state),
+          const SizedBox(height: 12),
+          MoneyHealthCard(state),
           if (bills.isNotEmpty) ...[
             SectionTitle(tr(ref, 'Coming up', 'সামনে যা দিতে হবে')),
             Surface(
@@ -193,7 +199,7 @@ class Dashboard extends ConsumerWidget {
                 child: Column(
                     children: bills.take(3).map((bill) {
                   final overdue =
-                      bill.text('due').compareTo(dayKey(DateTime.now())) < 0;
+                      bill.text('due').compareTo(dayKey(financeNow())) < 0;
                   return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.calendar_today_outlined,
@@ -201,9 +207,9 @@ class Dashboard extends ConsumerWidget {
                       title: Text(bill.text('name'),
                           style: const TextStyle(
                               fontSize: 14, fontWeight: FontWeight.w500)),
-                      subtitle: Text(
+                      subtitle: LText(
                           '${overdue ? 'Overdue · ' : ''}${bill.text('due')}'),
-                      trailing: Text(display(bill.number('amount')),
+                      trailing: LText(display(bill.number('amount')),
                           style: const TextStyle(fontWeight: FontWeight.w600)));
                 }).toList())),
           ],
@@ -230,7 +236,7 @@ class Dashboard extends ConsumerWidget {
                                 transactionDetails(context, ref, r, state)))
                         .toList())),
           const SizedBox(height: 24),
-          Text(
+          LText(
               tr(ref, 'A little clarity, every day.',
                   'প্রতিদিনের হিসাবে স্বচ্ছতা।'),
               textAlign: TextAlign.center,
@@ -251,12 +257,12 @@ class Dashboard extends ConsumerWidget {
             const SizedBox(width: 6),
             Expanded(
                 child:
-                    Text(label, style: Theme.of(context).textTheme.bodySmall))
+                    LText(label, style: Theme.of(context).textTheme.bodySmall))
           ]),
           const SizedBox(height: 10),
           FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(amount,
+              child: LText(amount,
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,

@@ -1,6 +1,18 @@
 # Build an iOS IPA from Windows using GitHub Actions
 
-Current release: **0.2.0**, built and verified in
+The new **0.3.1** unsigned build succeeded in
+[run 43267612022](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/43267612022).
+See [the completion report](COMPLETION_0.3.1_2026-11-12.md) for its source revision,
+verification and delivery status. The **0.2.0** details below are historical.
+
+Local delivery: [HisabNikash-0.3.1-unsigned.ipa](../artifacts/releases/0.3.1/HisabNikash-0.3.1-unsigned.ipa),
+version **0.3.1 (5)**, 12,890,186 bytes. ZIP integrity, ARM64 binaries, source
+revision, bundle metadata, native Bengali localization and CI checksum passed.
+[Verification manifest](../artifacts/releases/0.3.1/ios-manifest.json).
+SHA-256: `70448afecb047def0d5de77fab8eb5686142788c3f0c6dd81010e77aa4eb1abc`.
+The application is unsigned; signing/provisioning is required for installation.
+
+Previous release: **0.2.0**, built and verified in
 [run 43079501245](https://github.com/IstiakDeveloper/hisabnikash/actions/runs/43079501245).
 The local review/install package is `artifacts/releases/0.2.0/`, including
 `HisabNikash-0.2.0-unsigned.ipa`. It includes the new icon, native splash and UI;

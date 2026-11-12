@@ -1,3 +1,4 @@
+import 'localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
@@ -54,17 +55,18 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const Text('Spaces'), actions: [
+      appBar: AppBar(title: const LText('Spaces'), actions: [
         Padding(
             padding: const EdgeInsets.only(right: 16),
             child: IconButton.filledTonal(
-                tooltip: 'Create space',
+                tooltip: localText(context, 'Create space'),
                 onPressed: () => openEditor(context, 'space'),
                 icon: const Icon(Icons.add)))
       ]),
       body: ref.watch(snapshotProvider).when(
           loading: () => const VaultSkeleton(),
-          error: (_, __) => const Center(child: Text('Could not load spaces.')),
+          error: (_, __) =>
+              const Center(child: LText('Could not load spaces.')),
           data: (state) {
             final month = ref.watch(monthProvider),
                 hidden = ref.watch(privacyProvider);
@@ -80,10 +82,10 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                     constraints: const BoxConstraints(maxWidth: 1000),
                     child:
                         ListView(padding: const EdgeInsets.all(24), children: [
-                      Text('A clear home for every part of your life.',
+                      LText('A clear home for every part of your life.',
                           style: Theme.of(context).textTheme.headlineMedium),
                       const SizedBox(height: 12),
-                      const Text(
+                      const LText(
                           'Keep personal and business money separate. Switch spaces without losing the bigger picture.'),
                       const SizedBox(height: 24),
                       InkWell(
@@ -103,14 +105,14 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                      const Text('All spaces',
+                                      const LText('All spaces',
                                           style: TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.w700)),
                                       const SizedBox(height: 6),
                                       FittedBox(
                                           fit: BoxFit.scaleDown,
-                                          child: Text(
+                                          child: LText(
                                               display(
                                                   state.spaceBalance('all')),
                                               style: const TextStyle(
@@ -118,7 +120,7 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                                                   fontSize: 28,
                                                   fontWeight:
                                                       FontWeight.w700))),
-                                      Text(
+                                      LText(
                                           '${state.of('space').length} spaces · ${state.of('account').length} accounts · balance today',
                                           style: const TextStyle(
                                               color: Color(0xFFC4DCD0),
@@ -131,9 +133,10 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                       TextField(
                           key: const ValueKey('spaces-search'),
                           onChanged: (v) => setState(() => _query = v),
-                          decoration: const InputDecoration(
-                              prefixIcon: Icon(Icons.search),
-                              hintText: 'Search personal or business spaces')),
+                          decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.search),
+                              hintText: localText(context,
+                                  'Search personal or business spaces'))),
                       const SizedBox(height: 20),
                       if (spaces.isEmpty)
                         const EmptyState('No matching spaces',
@@ -170,14 +173,15 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .titleLarge),
-                                          Text(
+                                          LText(
                                               '${business ? 'Business' : 'Personal'}${selected ? ' · Active' : ''}',
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall)
                                         ])),
                                     PopupMenuButton<String>(
-                                        tooltip: 'Manage ${space.text('name')}',
+                                        tooltip: localText(context,
+                                            'Manage ${space.text('name')}'),
                                         onSelected: (action) async {
                                           if (action == 'edit') {
                                             await openEditor(context, 'space',
@@ -214,26 +218,26 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                                         itemBuilder: (_) => [
                                               const PopupMenuItem(
                                                   value: 'edit',
-                                                  child: Text('Edit space')),
+                                                  child: LText('Edit space')),
                                               const PopupMenuItem(
                                                   value: 'delete',
-                                                  child: Text(
+                                                  child: LText(
                                                       'Delete empty space'))
                                             ]),
                                   ]),
                                   const SizedBox(height: 22),
-                                  Text('BALANCE TODAY',
+                                  LText('BALANCE TODAY',
                                       style: Theme.of(context)
                                           .textTheme
                                           .labelSmall
                                           ?.copyWith(letterSpacing: 1.2)),
                                   const SizedBox(height: 6),
-                                  Text(display(state.spaceBalance(space.id)),
+                                  LText(display(state.spaceBalance(space.id)),
                                       style: Theme.of(context)
                                           .textTheme
                                           .headlineMedium),
                                   const SizedBox(height: 8),
-                                  Text(
+                                  LText(
                                       accounts.isEmpty
                                           ? 'No accounts yet — add your first one below.'
                                           : accounts
@@ -266,7 +270,7 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                                         onPressed: () => _open(space.id),
                                         icon: const Icon(Icons.arrow_forward,
                                             size: 18),
-                                        label: const Text('Open space')),
+                                        label: const LText('Open space')),
                                     TextButton.icon(
                                         key:
                                             ValueKey('add-account-${space.id}'),
@@ -274,7 +278,7 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                                             context, 'account',
                                             initialSpace: space.id),
                                         icon: const Icon(Icons.add, size: 18),
-                                        label: const Text('Add account')),
+                                        label: const LText('Add account')),
                                   ]),
                                 ])));
                       }),
@@ -282,8 +286,8 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
           }));
   Widget _metric(BuildContext context, String label, String amount) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        LText(label, style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 6),
-        Text(amount, style: Theme.of(context).textTheme.titleMedium)
+        LText(amount, style: Theme.of(context).textTheme.titleMedium)
       ]);
 }
